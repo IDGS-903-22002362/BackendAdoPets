@@ -40,6 +40,10 @@ public class AdoPetsDbContext : DbContext
     public DbSet<Cita> Citas => Set<Cita>();
     public DbSet<CitaRecordatorio> CitasRecordatorios => Set<CitaRecordatorio>();
     public DbSet<CitaHistorialEstado> CitasHistorialEstados => Set<CitaHistorialEstado>();
+    public DbSet<Ticket> Tickets => Set<Ticket>();
+    public DbSet<TicketDetalle> TicketDetalles => Set<TicketDetalle>();
+    public DbSet<Pago> Pagos => Set<Pago>();
+    public DbSet<SolicitudCitaDigital> SolicitudesCitasDigitales => Set<SolicitudCitaDigital>();
     #endregion
 
     #region HistorialClinico

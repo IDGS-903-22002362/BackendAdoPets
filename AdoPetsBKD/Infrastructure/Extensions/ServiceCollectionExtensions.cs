@@ -21,6 +21,11 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUsuarioService, UsuarioService>();
         services.AddSingleton<ITokenService, TokenService>();
         services.AddSingleton<IPasswordHasher, PasswordHasher>();
+        
+        // Servicios de Clínica
+        services.AddScoped<ITicketService, TicketService>();
+        services.AddScoped<ISolicitudCitaDigitalService, SolicitudCitaDigitalService>();
+        services.AddScoped<IPagoService, PagoService>();
 
         return services;
     }

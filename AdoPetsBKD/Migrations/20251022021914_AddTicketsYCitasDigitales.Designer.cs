@@ -4,6 +4,7 @@ using AdoPetsBKD.Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 
 #nullable disable
@@ -11,9 +12,11 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace AdoPetsBKD.Migrations
 {
     [DbContext(typeof(AdoPetsDbContext))]
-    partial class AdoPetsDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251022021914_AddTicketsYCitasDigitales")]
+    partial class AddTicketsYCitasDigitales
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
