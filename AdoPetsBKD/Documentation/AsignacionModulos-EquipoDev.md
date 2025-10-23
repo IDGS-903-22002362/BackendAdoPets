@@ -21,7 +21,7 @@ La asignación se ha realizado considerando:
 
 ---
 
-## ????? Developer 1 - **Security & Authentication Lead**
+## ????? Developer 1 - **Security & Authentication Lead** (Antonio)
 
 ### Módulos Asignados
 #### 1. **Módulo de Seguridad (Security)** ??
@@ -74,7 +74,7 @@ PUT    /api/notificaciones/{id}/read
 
 ---
 
-## ????? Developer 2 - **Adoption & Pets Management Lead**
+## ????? Developer 2 - **Adoption & Pets Management Lead** (Esme)
 
 ### Módulos Asignados
 #### 1. **Módulo de Mascotas (Mascotas)** ??
@@ -126,7 +126,7 @@ POST   /api/solicitudes-adopcion/{id}/adjuntos
 
 ---
 
-## ????? Developer 3 - **Clinic & Medical Records Lead**
+## ????? Developer 3 - **Clinic & Medical Records Lead** (Beto)
 
 ### Módulos Asignados
 #### 1. **Módulo de Clínica (Clinica)** ??
@@ -246,7 +246,7 @@ GET    /api/valoraciones/mascota/{mascotaId}
 
 ---
 
-## ????? Developer 4 - **Inventory & Supply Chain Lead**
+## ????? Developer 4 - **Inventory & Supply Chain Lead** (Pau)
 
 ### Módulos Asignados
 #### 1. **Módulo de Inventario (Inventario)** ??
@@ -311,7 +311,7 @@ GET    /api/inventario/reportes/valoracion-stock
 
 ---
 
-## ????? Developer 5 - **Services, Donations & Infrastructure Lead**
+## ????? Developer 5 - **Services, Donations & Infrastructure Lead** (Cielo)
 
 ### Módulos Asignados
 #### 1. **Módulo de Servicios (Servicios)** ??
