@@ -27,6 +27,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ISolicitudCitaDigitalService, SolicitudCitaDigitalService>();
         services.AddScoped<IPagoService, PagoService>();
 
+        // Servicios de Empleados 
+        services.AddScoped<IEmpleadoService, EmpleadoService>();
+        services.AddScoped<IEmpleadoRepository, EmpleadoRepository>();
+
         return services;
     }
 }
