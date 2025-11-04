@@ -26,6 +26,18 @@ namespace AdoPetsBKD.Infrastructure.Repositories;
     }
 
 
+ public async Task<IEnumerable<Mascota>> GetAllAsync(bool includeFotos = true)
+{
+    IQueryable<Mascota> query = _context.Mascotas;
+
+    if (includeFotos)
+    {
+        query = query.Include(m => m.Fotos);
+    }
+
+    return await query.ToListAsync();
+}
+
     public async Task<Mascota> CreateAsync(Mascota mascota)
         {
             await _context.Mascotas.AddAsync(mascota);
@@ -61,10 +73,7 @@ namespace AdoPetsBKD.Infrastructure.Repositories;
             await _context.MascotasFotos.AddRangeAsync(foto);
         return foto;
     }
-    public async Task SaveChangesAsync()
-        {
-            await _context.SaveChangesAsync();
-    }
+  
 
 
     public async Task<MascotaFoto> DeletePhotoAsync(Guid id)
@@ -76,6 +85,84 @@ namespace AdoPetsBKD.Infrastructure.Repositories;
         _context.MascotasFotos.Remove(foto);
         return foto;
     }
+
+    // Solicitud de adopcion
+    public async Task<SolicitudAdopcion> CreateSolicitudAdopcionAsync(SolicitudAdopcion solicitud)
+    {
+        await _context.SolicitudesAdopcion.AddAsync(solicitud);
+        return solicitud;
+    }
+
+    public async Task<SolicitudAdopcion?> GetSolicitudByIdAsync(Guid solicitudId)
+    {
+        return await _context.SolicitudesAdopcion
+            .Include(s => s.Usuario)   
+            .Include(s => s.Mascota)
+            .ThenInclude(m => m.Fotos.OrderBy(f => f.Orden))
+            .Include(s => s.Logs)
+            .FirstOrDefaultAsync(s => s.Id == solicitudId);
+    }
+
+    public async Task<IEnumerable<SolicitudAdopcion>> GetAllSolicitudesAdopcionAsync()
+    {
+        return await _context.SolicitudesAdopcion
+            .Include(s => s.Usuario)
+            .Include(s => s.Mascota)
+            .ThenInclude(m => m.Fotos.OrderBy(f => f.Orden))
+            .Include(s => s.Logs.OrderByDescending(l => l.ChangedAt))
+            .ToListAsync();
+    }
+
+    public async Task<SolicitudAdopcion> UpdateStatusSolicitudAdopcionAsync(SolicitudAdopcion solicitud)
+    {
+        solicitud.UpdatedAt = DateTime.UtcNow;
+        _context.SolicitudesAdopcion.Update(solicitud);
+        return solicitud;
+    }
+    
+    public async Task<SolicitudAdopcion> UpdateSolicitudAdopcionAceptadaAsync(SolicitudAdopcion solicitud)
+    {
+        solicitud.UpdatedAt = DateTime.UtcNow;
+        _context.SolicitudesAdopcion.Update(solicitud);
+        return solicitud;
+    }
+
+
+    public async Task<SolicitudAdopcion> UpdateSolicitudAdopcionRechazadaAsync(SolicitudAdopcion solicitud)
+    {
+        solicitud.UpdatedAt = DateTime.UtcNow;
+        _context.SolicitudesAdopcion.Update(solicitud);
+        return solicitud;
+    }
+
+    public async Task<SolicitudAdopcion> UpdateSolicitudAdopcionCanceladaAsync(SolicitudAdopcion solicitud)
+    {
+        solicitud.UpdatedAt = DateTime.UtcNow;
+        _context.SolicitudesAdopcion.Update(solicitud);
+        return solicitud;
+    }
+
+    public async Task<IEnumerable<SolicitudAdopcion>> GetSolicitudbyUsuarioIdAsync(Guid usuarioId)
+    {
+        return await _context.SolicitudesAdopcion
+            .Include(s => s.Usuario)
+            .Include(s => s.Mascota)
+            .Include(s => s.Logs)
+            .Where(s => s.UsuarioId == usuarioId)
+            .ToListAsync();
+    }
+    public async Task<AdopcionLog> AddAdopcionLogAsync(AdopcionLog log)
+    {
+        await _context.AdopcionLogs.AddAsync(log);
+        return log;
+    }
+
+    
+    public async Task SaveChangesAsync()
+    {
+        await _context.SaveChangesAsync();
+    }
+
 
 }
 

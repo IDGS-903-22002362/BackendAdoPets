@@ -1,16 +1,17 @@
-using System.Text;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.IdentityModel.Tokens;
-using Microsoft.OpenApi.Models;
 using AdoPetsBKD.Infrastructure.Configuration;
 using AdoPetsBKD.Infrastructure.Data;
-using AdoPetsBKD.Infrastructure.Extensions;
 using AdoPetsBKD.Infrastructure.Data.Seeders;
+using AdoPetsBKD.Infrastructure.Extensions;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.FileProviders;
+using Microsoft.IdentityModel.Tokens;
+using Microsoft.OpenApi.Models;
+using System.Text;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configuración de Settings
+// Configuraciï¿½n de Settings
 var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>()
     ?? throw new InvalidOperationException("JWT settings not configured");
 var corsSettings = builder.Configuration.GetSection(CorsSettings.SectionName).Get<CorsSettings>()
@@ -43,6 +44,8 @@ builder.Services.AddDbContext<AdoPetsDbContext>(options =>
         options.EnableDetailedErrors();
     }
 });
+
+
 
 // Application Services (Repositories & Services)
 builder.Services.AddApplicationServices();
@@ -94,7 +97,7 @@ builder.Services.AddSwaggerGen(options =>
     {
         Title = "AdoPets API",
         Version = "v1",
-        Description = "API para la gestión integral de refugio de animales"
+        Description = "API para la gestiï¿½n integral de refugio de animales"
     });
 
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -121,6 +124,15 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
+// En Program.cs o Startup.cs
+app.UseStaticFiles(); // Para wwwroot
+app.UseStaticFiles(new StaticFileOptions
+{
+    FileProvider = new PhysicalFileProvider(
+        Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads")),
+    RequestPath = "/uploads"
+});
+
 // Configure HTTP pipeline
 if (app.Environment.IsDevelopment())
 {
@@ -137,7 +149,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors(corsSettings.PolicyName);
 
-// Solo redirigir a HTTPS en producción para evitar problemas con CORS
+// Solo redirigir a HTTPS en producciï¿½n para evitar problemas con CORS
 if (!app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
@@ -147,7 +159,7 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
-// Inicialización de BD en desarrollo
+// Inicializaciï¿½n de BD en desarrollo
 if (app.Environment.IsDevelopment())
 {
     using var scope = app.Services.CreateScope();
@@ -157,10 +169,10 @@ if (app.Environment.IsDevelopment())
     {
         if (await dbContext.Database.CanConnectAsync())
         {
-            app.Logger.LogInformation("? Conexión a BD exitosa");
+            app.Logger.LogInformation("? Conexiï¿½n a BD exitosa");
             await dbContext.Database.MigrateAsync();
             
-            // Inicializar datos básicos
+            // Inicializar datos bï¿½sicos
             await DatabaseSeeder.SeedAllAsync(dbContext);
             app.Logger.LogInformation("? Datos iniciales cargados");
         }
