@@ -8,7 +8,7 @@ public interface ISolicitudCitaDigitalService
     Task<SolicitudCitaDigitalDto?> GetSolicitudByIdAsync(Guid id);
     Task<List<SolicitudCitaDigitalDto>> GetSolicitudesByUsuarioAsync(Guid usuarioId);
     Task<List<SolicitudCitaDigitalDto>> GetSolicitudesPendientesAsync();
-    Task<DisponibilidadResponseDto> VerificarDisponibilidadAsync(VerificarDisponibilidadDto dto);
+    Task<VerificarDisponibilidadResponseDto> VerificarDisponibilidadAsync(VerificarDisponibilidadDto dto);
     Task<SolicitudCitaDigitalDto> MarcarComoEnRevisionAsync(Guid solicitudId, Guid revisadoPorId);
     Task<SolicitudCitaDigitalDto> ConfirmarSolicitudAsync(ConfirmarSolicitudCitaDto dto);
     Task<SolicitudCitaDigitalDto> RechazarSolicitudAsync(RechazarSolicitudCitaDto dto);

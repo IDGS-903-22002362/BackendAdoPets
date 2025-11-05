@@ -145,7 +145,7 @@ POST   /api/solicitudes-adopcion/{id}/adjuntos
 - ? Sistema de agenda de citas
 - ? Prevención de solapamiento de horarios
 - ? Gestión de salas
-- ? Recordatorios automáticos (email, SMS, push)
+- ? Recordatorios automáticos (email, push)
 - ? Historial de estados de citas
 - ? Citas para mascotas del refugio y externas
 - ? **Tickets de procedimientos** (recién agregado)
