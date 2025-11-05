@@ -20,5 +20,7 @@ namespace AdoPetsBKD.Application.DTOs.Mascota
         public List<AddMascotaFotoDto>? Fotos { get; set; }
         public DateTime CreatedAt { get; set; }
         public DateTime? UpdatedAt { get; set; }
+
+        public int? EdadEnAnio { get; set; }
     }
 }

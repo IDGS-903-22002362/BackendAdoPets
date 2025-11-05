@@ -1,8 +1,10 @@
 ﻿using AdoPetsBKD.Application.Common;
 using AdoPetsBKD.Application.DTOs.Mascota;
 using AdoPetsBKD.Application.Interfaces.Services;
+using AdoPetsBKD.Domain.Entities.Mascotas;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
+using System;
 
 namespace AdoPetsBKD.Controllers
 {
@@ -21,17 +23,34 @@ namespace AdoPetsBKD.Controllers
         }
 
 
-        // Pendiente: Tambien se tienen que ver las mascotas con estatus noAdoptable ?
         [HttpGet("{id}")]
         public async Task<IActionResult> GetById(Guid id)
         {
             var mascota = await _mascotaService.GetByIdAsync(id);
-            if (mascota == null)
-                return NotFound();
+            if (mascota == null) return NotFound();
+
+            // Asegurar que todas las fotos tengan URLs absolutas
+            var baseUrl = $"{Request.Scheme}://{Request.Host}";
+            foreach (var foto in mascota.Fotos ?? Enumerable.Empty<AddMascotaFotoDto>())
+            {
+                if (!string.IsNullOrEmpty(foto.StorageKey))
+                {
+                    // Si es una ruta relativa, convertir a absoluta
+                    if (foto.StorageKey.StartsWith("/"))
+                    {
+                        foto.StorageKey = $"{baseUrl}{foto.StorageKey}";
+                    }
+                    // Si es una ruta con "uploads/" sin slash inicial
+                    else if (foto.StorageKey.StartsWith("uploads/"))
+                    {
+                        foto.StorageKey = $"{baseUrl}/{foto.StorageKey}";
+                    }
+                    // Si ya es una URL completa, dejarla como está
+                }
+            }
 
             return Ok(mascota);
         }
-
 
         // Crear una nueva mascota
         [HttpPost]
@@ -54,6 +73,39 @@ namespace AdoPetsBKD.Controllers
                 return StatusCode(500, "Ocurrió un error al crear la mascota");
             }
         }
+
+
+        [HttpGet]
+        public async Task<IActionResult> GetAll([FromQuery] FiltroMascotaDto filtro)
+        {
+            var mascotas = await _mascotaService.GetAllAsync(filtro);
+            if (mascotas == null) return NotFound();
+
+            var baseUrl = $"{Request.Scheme}://{Request.Host}";
+
+            // Recorrer cada mascota
+            foreach (var mascota in mascotas)
+            {
+                foreach (var foto in mascota.Fotos ?? Enumerable.Empty<AddMascotaFotoDto>())
+                {
+                    if (!string.IsNullOrEmpty(foto.StorageKey))
+                    {
+                        if (foto.StorageKey.StartsWith("/"))
+                        {
+                            foto.StorageKey = $"{baseUrl}{foto.StorageKey}";
+                        }
+                        else if (foto.StorageKey.StartsWith("uploads/"))
+                        {
+                            foto.StorageKey = $"{baseUrl}/{foto.StorageKey}";
+                        }
+                        // Si ya es una URL completa, no se cambia
+                    }
+                }
+            }
+
+            return Ok(mascotas);
+        }
+
 
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(Guid id, [FromBody] UpdateMascotaDto dto)
