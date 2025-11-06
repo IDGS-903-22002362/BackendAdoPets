@@ -11,7 +11,6 @@ namespace AdoPetsBKD.Controllers
     /// <summary>
     /// Controlador para gestionar empleados
     /// </summary>
-    /// 
     [ApiController]
     [Route("api/[controller]")]
     [Authorize]
@@ -26,7 +25,9 @@ namespace AdoPetsBKD.Controllers
             _logger = logger;
         }
 
-
+        /// <summary>
+        /// Obtener todos los empleados con paginación
+        /// </summary>
         [HttpGet]
         [Authorize(Policy = "AdminOnly")]
         [ProducesResponseType(typeof(ApiResponse<PagedResponse<EmpleadoListDto>>), StatusCodes.Status200OK)]
@@ -37,9 +38,13 @@ namespace AdoPetsBKD.Controllers
             try
             {
                 var result = await _empleadoService.GetAllAsync(pageNumber, pageSize, includeInactive);
-                return new OkObjectResult(result);
+                return Ok(new ApiResponse<PagedResponse<EmpleadoListDto>>
+                {
+                    Success = true,
+                    Message = "Empleados obtenidos correctamente",
+                    Data = result
+                });
             }
-
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error al obtener la lista de empleados");
@@ -51,11 +56,9 @@ namespace AdoPetsBKD.Controllers
             }
         }
 
-
         /// <summary>
         /// Crear un nuevo empleado
         /// </summary>
-
         [HttpPost]
         [Authorize(Policy = "AdminOnly")]
         [ProducesResponseType(typeof(ApiResponse<EmpleadoDetailDto>), StatusCodes.Status201Created)]
@@ -82,6 +85,15 @@ namespace AdoPetsBKD.Controllers
                         Data = result
                     }
                 );
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning(ex, "Error de validación al crear empleado");
+                return BadRequest(new ApiResponse<EmpleadoDetailDto>
+                {
+                    Success = false,
+                    Message = ex.Message
+                });
             }
             catch (Exception ex)
             {
@@ -113,23 +125,25 @@ namespace AdoPetsBKD.Controllers
 
                 _logger.LogInformation("Empleado actualizado {Id}", empleado.Id);
                 return Ok(ApiResponse<EmpleadoDetailDto>.SuccessResponse(empleado, "Empleado actualizado exitosamente"));
-
-            }catch (InvalidOperationException)
+            }
+            catch (InvalidOperationException ex)
             {
-                return NotFound(ApiResponse<object>.ErrorResponse("Empleado no encontrado"));
-            }catch (Exception ex)
+                _logger.LogWarning(ex, "Error de validación al actualizar empleado");
+                return BadRequest(ApiResponse<object>.ErrorResponse(ex.Message));
+            }
+            catch (Exception ex)
             {
                 _logger.LogError(ex, "Error al actualizar los datos del empleado");
-                return BadRequest(ApiResponse<object>.ErrorResponse("Error al actualizar los datos del empleado"));
+                return BadRequest(ApiResponse<object>.ErrorResponse("Error al actualizar los datos del empleado: " + ex.Message));
             }
         }
 
-        /// 
+        /// <summary>
         /// Eliminar un empleado 
-        /// 
-        [HttpDelete]
+        /// </summary>
+        [HttpDelete("{id}")]
         [Authorize(Policy = "AdminOnly")]
-        [ProducesResponseType(typeof(ApiResponse<EmpleadoDetailDto>),StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
@@ -143,18 +157,18 @@ namespace AdoPetsBKD.Controllers
                 _logger.LogInformation("Empleado eliminado: {Id}", id);
                 return Ok(ApiResponse<object>.SuccessResponse(null, "Empleado eliminado exitosamente"));
             }
-            catch (InvalidOperationException)
+            catch (InvalidOperationException ex)
             {
-                return NotFound(ApiResponse<object>.ErrorResponse("Empleado no encontrado"));
+                return NotFound(ApiResponse<object>.ErrorResponse(ex.Message));
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error al eliminar el empleado");
-                return BadRequest(ApiResponse<object>.ErrorResponse("Error al eliminar el empleado"));
+                return BadRequest(ApiResponse<object>.ErrorResponse("Error al eliminar el empleado: " + ex.Message));
             }
         }
 
-        ///
+        /// <summary>
         /// Activar a un empleado
         /// </summary>
         [HttpPatch("{id}/activate")]
@@ -177,17 +191,20 @@ namespace AdoPetsBKD.Controllers
                 _logger.LogInformation("Empleado reactivado: {Id}", id);
                 return Ok(ApiResponse<EmpleadoDetailDto>.SuccessResponse(empleado, "Empleado reactivado exitosamente"));
             }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(ApiResponse<object>.ErrorResponse(ex.Message));
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error al reactivar empleado");
-                return BadRequest(ApiResponse<object>.ErrorResponse("Error al reactivar empleado"));
+                return BadRequest(ApiResponse<object>.ErrorResponse("Error al reactivar empleado: " + ex.Message));
             }
         }
 
-
-        /// 
+        /// <summary>
         /// Desactivar un empleado 
-        /// 
+        /// </summary>
         [HttpPatch("{id}/deactivate")]
         [Authorize(Policy = "AdminOnly")]
         [ProducesResponseType(typeof(ApiResponse<EmpleadoDetailDto>), StatusCodes.Status200OK)]
@@ -207,29 +224,34 @@ namespace AdoPetsBKD.Controllers
                 _logger.LogInformation("Empleado dado de baja: {Id}", id);
                 return Ok(ApiResponse<EmpleadoDetailDto>.SuccessResponse(empleado, "Empleado dado de baja exitosamente"));
             }
+            catch (InvalidOperationException ex)
+            {
+                return NotFound(ApiResponse<object>.ErrorResponse(ex.Message));
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error al dar de baja al empleado");
-                return BadRequest(ApiResponse<object>.ErrorResponse("Error al dar de baja al empleado"));
+                return BadRequest(ApiResponse<object>.ErrorResponse("Error al dar de baja al empleado: " + ex.Message));
             }
         }
 
         /// <summary>
         /// Consultar el registro de un empleado
         /// </summary>
-        /// <param name="id"></param>
-        /// <returns></returns>
+        /// <param name="id">ID del empleado</param>
         [HttpGet("{id}")]
         [Authorize(Policy = "AdminOnly")]
         [ProducesResponseType(typeof(ApiResponse<EmpleadoDetailDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
         public async Task<IActionResult> GetById(Guid id)
         {
             var empleado = await _empleadoService.GetByIdAsync(id);
             if (empleado == null)
                 return NotFound(new ApiResponse<EmpleadoDetailDto> { Success = false, Message = "Empleado no encontrado" });
 
-            return Ok(new ApiResponse<EmpleadoDetailDto> { Success = true, Data = empleado , Message = "Empleado encontrado"});
+            return Ok(new ApiResponse<EmpleadoDetailDto> { Success = true, Data = empleado, Message = "Empleado encontrado" });
         }
 
         private Guid GetCurrentUserId()
@@ -241,6 +263,5 @@ namespace AdoPetsBKD.Controllers
             }
             return userId;
         }
-
     }
 }
