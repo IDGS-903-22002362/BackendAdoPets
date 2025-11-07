@@ -4,6 +4,7 @@ using AdoPetsBKD.Application.Common;
 using AdoPetsBKD.Application.DTOs.Empleados;
 using AdoPetsBKD.Application.Interfaces.Repositories;
 using AdoPetsBKD.Domain.Entities.Security;
+using Microsoft.EntityFrameworkCore;
 
 namespace AdoPetsBKD.Infrastructure.Services
 {
@@ -12,15 +13,18 @@ namespace AdoPetsBKD.Infrastructure.Services
         private readonly IEmpleadoRepository _empleadoRepository;
         private readonly IUsuarioService _usuarioService;
         private readonly IUsuarioRepository _usuarioRepository;
+        private readonly IEspecialidadRepositoy _especialidadRepository;
 
         public EmpleadoService(
             IEmpleadoRepository empleadoRepository, 
             IUsuarioService usuarioService,
-            IUsuarioRepository usuarioRepository)
+            IUsuarioRepository usuarioRepository,
+            IEspecialidadRepositoy especialidadRepository)
         {
             _empleadoRepository = empleadoRepository;
             _usuarioService = usuarioService;
             _usuarioRepository = usuarioRepository;
+            _especialidadRepository = especialidadRepository;
         }
 
         public async Task<PagedResponse<EmpleadoListDto>> GetAllAsync(int pageNumber, int pageSize, bool includeInactive = false)
@@ -38,7 +42,12 @@ namespace AdoPetsBKD.Infrastructure.Services
                 FechaContratacion = e.FechaContratacion,
                 TipoEmpleado = e.Usuario != null ? string.Join(", ", e.Usuario.UsuarioRoles.Select(ur => ur.Rol != null ? ur.Rol.Nombre : string.Empty)) : string.Empty,
                 Sueldo = e.Sueldo,
-                Especialidades = e.Especialidades != null ? e.Especialidades.Select(es => es.Especialidad.Descripcion).ToList() : new List<string>()
+                Especialidades = e.Especialidades.Select(es => new EspecialidadSimpleDto
+                {
+                    Id = es.EspecialidadId,
+                    Codigo = es.Especialidad.Codigo,
+                    Descripcion = es.Especialidad.Descripcion
+                }).ToList()
             }).ToList();
 
             return new PagedResponse<EmpleadoListDto>
@@ -53,7 +62,7 @@ namespace AdoPetsBKD.Infrastructure.Services
 
         public async Task<EmpleadoDetailDto?> GetByIdAsync(Guid id)
         {
-            var empleado = await _empleadoRepository.GetByIdAsync(id);
+            var empleado = await _empleadoRepository.GetByIdWithEspecialidadesAsync(id);
 
             if (empleado == null || empleado.Usuario == null) 
             {
@@ -73,7 +82,15 @@ namespace AdoPetsBKD.Infrastructure.Services
                 TipoEmpleado = string.Join(", ", empleado.Usuario.UsuarioRoles.Select(ur => ur.Rol != null ? ur.Rol.Nombre : string.Empty)),
                 Sueldo = empleado.Sueldo,
                 Disponibilidad = empleado.Disponibilidad,
-                Cedula = empleado.Cedula
+                Cedula = empleado.Cedula,
+                Especialidades = empleado.Especialidades.Select(ee => new EspecialidadEmpleadoDto
+                {
+                    EspecialidadId = ee.EspecialidadId,
+                    Descripcion = ee.Especialidad.Descripcion,
+                    Codigo = ee.Especialidad.Codigo,
+                    Certificacion = ee.Certificacion,
+                    ObtainedAt = ee.ObtainedAt
+                }).ToList()
             }; 
         }
 
@@ -196,6 +213,72 @@ namespace AdoPetsBKD.Infrastructure.Services
             await _empleadoRepository.SaveChangesAsync();
 
             return (await GetByIdAsync(id))!;
+        }
+
+        public async Task<EmpleadoDetailDto> AsignarEspecialidadesAsync(Guid empleadoId, AsignarEspecialidadesDto dto, Guid performedBy)
+        {
+            var empleado = await _empleadoRepository.GetByIdWithEspecialidadesAsync(empleadoId);
+            if (empleado == null)
+            {
+                throw new InvalidOperationException("Empleado no encontrado");
+            }
+
+            // Validar que todas las especialidades existan
+            var especialidadesIds = dto.Especialidades.Select(e => e.EspecialidadId).ToList();
+            var especialidades = await _especialidadRepository.GetAllAsync(1, 100);
+            var especialidadesExistentes = especialidades.Where(e => especialidadesIds.Contains(e.Id)).ToList();
+
+            if (especialidadesExistentes.Count != especialidadesIds.Count)
+            {
+                throw new InvalidOperationException("Una o más especialidades no existen");
+            }
+
+            // Limpiar especialidades anteriores
+            empleado.Especialidades.Clear();
+
+            // Agregar nuevas especialidades
+            foreach (var especialidadDto in dto.Especialidades)
+            {
+                empleado.Especialidades.Add(new EmpleadoEspecialidad
+                {
+                    EmpleadoId = empleadoId,
+                    EspecialidadId = especialidadDto.EspecialidadId,
+                    Certificacion = especialidadDto.Certificacion,
+                    ObtainedAt = DateTime.UtcNow
+                });
+            }
+
+            empleado.UpdatedBy = performedBy;
+            empleado.UpdatedAt = DateTime.UtcNow;
+
+            await _empleadoRepository.UpdateAsync(empleado);
+            await _empleadoRepository.SaveChangesAsync();
+
+            return (await GetByIdAsync(empleadoId))!;
+        }
+
+        public async Task<EmpleadoDetailDto> RemoverEspecialidadAsync(Guid empleadoId, Guid especialidadId, Guid performedBy)
+        {
+            var empleado = await _empleadoRepository.GetByIdWithEspecialidadesAsync(empleadoId);
+            if (empleado == null)
+            {
+                throw new InvalidOperationException("Empleado no encontrado");
+            }
+
+            var especialidad = empleado.Especialidades.FirstOrDefault(e => e.EspecialidadId == especialidadId);
+            if (especialidad == null)
+            {
+                throw new InvalidOperationException("El empleado no tiene asignada esta especialidad");
+            }
+
+            empleado.Especialidades.Remove(especialidad);
+            empleado.UpdatedBy = performedBy;
+            empleado.UpdatedAt = DateTime.UtcNow;
+
+            await _empleadoRepository.UpdateAsync(empleado);
+            await _empleadoRepository.SaveChangesAsync();
+
+            return (await GetByIdAsync(empleadoId))!;
         }
     }
 }

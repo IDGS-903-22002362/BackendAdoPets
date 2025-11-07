@@ -12,6 +12,16 @@
         public string? TipoEmpleado { get; set; } = string.Empty;
         public decimal? Sueldo { get; set; }
         public DateTime? FechaContratacion { get; set; }
-        public List<string> Especialidades { get; set; } = new();
+        public List<EspecialidadSimpleDto> Especialidades { get; set; } = new();
+    }
+
+    /// <summary>
+    /// DTO simplificado para mostrar especialidad en listados
+    /// </summary>
+    public class EspecialidadSimpleDto
+    {
+        public Guid Id { get; set; }
+        public string? Codigo { get; set; }
+        public string Descripcion { get; set; } = string.Empty;
     }
 }

@@ -254,6 +254,69 @@ namespace AdoPetsBKD.Controllers
             return Ok(new ApiResponse<EmpleadoDetailDto> { Success = true, Data = empleado, Message = "Empleado encontrado" });
         }
 
+        /// <summary>
+        /// Asignar una o más especialidades a un empleado (veterinario)
+        /// </summary>
+        [HttpPost("{id}/especialidades")]
+        [Authorize(Policy = "AdminOnly")]
+        [ProducesResponseType(typeof(ApiResponse<EmpleadoDetailDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<IActionResult> AsignarEspecialidades(Guid id, [FromBody] AsignarEspecialidadesDto dto)
+        {
+            try
+            {
+                var currentUserId = GetCurrentUserId();
+                var empleado = await _empleadoService.AsignarEspecialidadesAsync(id, dto, currentUserId);
+
+                _logger.LogInformation("Especialidades asignadas al empleado {Id}", id);
+                return Ok(ApiResponse<EmpleadoDetailDto>.SuccessResponse(empleado, "Especialidades asignadas exitosamente"));
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning(ex, "Error de validación al asignar especialidades");
+                return BadRequest(ApiResponse<object>.ErrorResponse(ex.Message));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al asignar especialidades al empleado");
+                return BadRequest(ApiResponse<object>.ErrorResponse("Error al asignar especialidades: " + ex.Message));
+            }
+        }
+
+        /// <summary>
+        /// Remover una especialidad de un empleado
+        /// </summary>
+        [HttpDelete("{id}/especialidades/{especialidadId}")]
+        [Authorize(Policy = "AdminOnly")]
+        [ProducesResponseType(typeof(ApiResponse<EmpleadoDetailDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<IActionResult> RemoverEspecialidad(Guid id, Guid especialidadId)
+        {
+            try
+            {
+                var currentUserId = GetCurrentUserId();
+                var empleado = await _empleadoService.RemoverEspecialidadAsync(id, especialidadId, currentUserId);
+
+                _logger.LogInformation("Especialidad {EspecialidadId} removida del empleado {Id}", especialidadId, id);
+                return Ok(ApiResponse<EmpleadoDetailDto>.SuccessResponse(empleado, "Especialidad removida exitosamente"));
+            }
+            catch (InvalidOperationException ex)
+            {
+                _logger.LogWarning(ex, "Error al remover especialidad");
+                return NotFound(ApiResponse<object>.ErrorResponse(ex.Message));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al remover especialidad del empleado");
+                return BadRequest(ApiResponse<object>.ErrorResponse("Error al remover especialidad: " + ex.Message));
+            }
+        }
+
         private Guid GetCurrentUserId()
         {
             var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);

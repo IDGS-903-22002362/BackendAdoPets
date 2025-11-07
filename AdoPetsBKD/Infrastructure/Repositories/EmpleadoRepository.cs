@@ -51,12 +51,25 @@ namespace AdoPetsBKD.Infrastructure.Repositories
                          .FirstOrDefaultAsync(e => e.Id == id);
         }
 
+        public async Task<Empleado?> GetByIdWithEspecialidadesAsync(Guid id)
+        {
+            return await _context.Empleados
+                         .Include(e => e.Usuario)      
+                         .ThenInclude(u => u.UsuarioRoles) 
+                         .ThenInclude(ur => ur.Rol)
+                         .Include(e => e.Especialidades)
+                         .ThenInclude(ee => ee.Especialidad)
+                         .FirstOrDefaultAsync(e => e.Id == id);
+        }
+
         public async Task<List<Empleado>> GetAllAsync(int pageNumber = 1, int pageSize = 10, bool includeInactive = false)
         {
             var query = _context.Empleados
                 .Include(e => e.Usuario)
                 .ThenInclude(u => u.UsuarioRoles)
                 .ThenInclude(ur => ur.Rol)
+                .Include(e => e.Especialidades)
+                .ThenInclude(ee => ee.Especialidad)
                 .AsQueryable();
 
             if (!includeInactive)

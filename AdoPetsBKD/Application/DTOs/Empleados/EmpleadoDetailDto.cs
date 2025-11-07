@@ -22,5 +22,7 @@
         public decimal? Sueldo { get; set; }
 
         public string Disponibilidad { get; set; } = string.Empty;
+        
+        public List<EspecialidadEmpleadoDto> Especialidades { get; set; } = new();
     }
 }
