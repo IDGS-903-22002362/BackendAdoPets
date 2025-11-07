@@ -6,7 +6,7 @@ using AdoPetsBKD.Infrastructure.Services;
 namespace AdoPetsBKD.Infrastructure.Extensions;
 
 /// <summary>
-/// Extensiones para configurar la inyecci�n de dependencias
+/// Extensiones para configurar la inyección de dependencias
 /// </summary>
 public static class ServiceCollectionExtensions
 {
@@ -25,7 +25,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IPasswordHasher, PasswordHasher>();
         services.AddSingleton<IFirebaseAuthService, FirebaseAuthService>();
         
-        // Servicios de Cl�nica
+        // Servicios de Clínica
         services.AddScoped<ITicketService, TicketService>();
         services.AddScoped<ISolicitudCitaDigitalService, SolicitudCitaDigitalService>();
         services.AddScoped<IPagoService, PagoService>();
@@ -36,6 +36,11 @@ public static class ServiceCollectionExtensions
 
         // Servicios de Mascotas
         services.AddScoped<IUMascotaService, MascotaService>();
+
+        // Servicios de Especialidades 
+        services.AddScoped<IEspecialidadRepositoy, EspecialidadRepository>();
+        services.AddScoped<IEspecialidadService, EspecialidadService>();
+        
         return services;
     }
 }

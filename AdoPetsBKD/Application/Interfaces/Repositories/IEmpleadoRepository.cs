@@ -8,6 +8,7 @@ namespace AdoPetsBKD.Application.Interfaces.Repositories
     public interface IEmpleadoRepository
     {
         Task<Empleado?> GetByIdAsync(Guid id);
+        Task<Empleado?> GetByIdWithEspecialidadesAsync(Guid id);
         Task<Empleado> CreateAsync(Empleado empleado);
         Task<Empleado> UpdateAsync(Empleado empleado);
         Task<Empleado> DeleteAsync(Guid id);

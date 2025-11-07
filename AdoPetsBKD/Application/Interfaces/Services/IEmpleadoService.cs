@@ -15,5 +15,7 @@ namespace AdoPetsBKD.Application.Interfaces.Services
         Task DeleteAsync (Guid id, Guid deletedBy);
         Task<EmpleadoDetailDto> DarDeBajaAsync(Guid id, Guid performedBy);
         Task<EmpleadoDetailDto> ReactivarAsync(Guid id, Guid performedBy);
+        Task<EmpleadoDetailDto> AsignarEspecialidadesAsync(Guid empleadoId, AsignarEspecialidadesDto dto, Guid performedBy);
+        Task<EmpleadoDetailDto> RemoverEspecialidadAsync(Guid empleadoId, Guid especialidadId, Guid performedBy);
     }
 }
