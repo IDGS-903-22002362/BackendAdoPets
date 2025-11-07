@@ -81,16 +81,16 @@ public class SolicitudesCitasDigitalesController : ControllerBase
     }
 
     [HttpPost("verificar-disponibilidad")]
-    public async Task<ActionResult<ApiResponse<DisponibilidadResponseDto>>> VerificarDisponibilidad([FromBody] VerificarDisponibilidadDto dto)
+    public async Task<ActionResult<ApiResponse<VerificarDisponibilidadResponseDto>>> VerificarDisponibilidad([FromBody] VerificarDisponibilidadDto dto)
     {
         try
         {
             var disponibilidad = await _solicitudService.VerificarDisponibilidadAsync(dto);
-            return Ok(ApiResponse<DisponibilidadResponseDto>.SuccessResponse(disponibilidad));
+            return Ok(ApiResponse<VerificarDisponibilidadResponseDto>.SuccessResponse(disponibilidad));
         }
         catch (Exception ex)
         {
-            return BadRequest(ApiResponse<DisponibilidadResponseDto>.ErrorResponse(ex.Message));
+            return BadRequest(ApiResponse<VerificarDisponibilidadResponseDto>.ErrorResponse(ex.Message));
         }
     }
 

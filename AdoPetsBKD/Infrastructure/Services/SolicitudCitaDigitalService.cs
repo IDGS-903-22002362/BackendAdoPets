@@ -165,9 +165,9 @@ public class SolicitudCitaDigitalService : ISolicitudCitaDigitalService
             .ToListAsync();
     }
 
-    public async Task<DisponibilidadResponseDto> VerificarDisponibilidadAsync(VerificarDisponibilidadDto dto)
+    public async Task<VerificarDisponibilidadResponseDto> VerificarDisponibilidadAsync(VerificarDisponibilidadDto dto)
     {
-        var resultado = new DisponibilidadResponseDto { Disponible = true };
+        var resultado = new VerificarDisponibilidadResponseDto { Disponible = true };
         var fechaFin = dto.FechaHoraInicio.AddMinutes(dto.DuracionMin);
 
         // Verificar conflictos con otras citas

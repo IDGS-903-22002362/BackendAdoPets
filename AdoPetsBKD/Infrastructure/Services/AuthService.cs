@@ -16,6 +16,7 @@ public class AuthService : IAuthService
     private readonly IRolRepository _rolRepository;
     private readonly IPasswordHasher _passwordHasher;
     private readonly ITokenService _tokenService;
+    private readonly IFirebaseAuthService _firebaseAuthService;
     private readonly PoliciesSettings _policiesSettings;
 
     public AuthService(
@@ -23,12 +24,14 @@ public class AuthService : IAuthService
         IRolRepository rolRepository,
         IPasswordHasher passwordHasher,
         ITokenService tokenService,
+        IFirebaseAuthService firebaseAuthService,
         IOptions<PoliciesSettings> policiesSettings)
     {
         _usuarioRepository = usuarioRepository;
         _rolRepository = rolRepository;
         _passwordHasher = passwordHasher;
         _tokenService = tokenService;
+        _firebaseAuthService = firebaseAuthService;
         _policiesSettings = policiesSettings.Value;
     }
 
@@ -191,5 +194,122 @@ public class AuthService : IAuthService
         // En una implementación real, aquí invalidarías el refresh token del usuario
         // almacenado en la base de datos
         await Task.CompletedTask;
+    }
+
+    public async Task<LoginResponseDto> LoginWithFirebaseAsync(FirebaseLoginRequestDto request)
+    {
+        // 1. Validar el token de Firebase y obtener información del usuario
+        var (firebaseUid, email, displayName) = await _firebaseAuthService.ValidateFirebaseTokenAsync(request.IdToken);
+
+        // 2. Buscar o crear usuario en la base de datos local
+        var usuario = await _usuarioRepository.GetByEmailAsync(email, includeRoles: true);
+
+        if (usuario == null)
+        {
+            // El usuario no existe, crearlo automáticamente
+            usuario = await CreateUserFromFirebaseAsync(email, displayName, firebaseUid);
+        }
+        else
+        {
+            // Verificar estatus del usuario
+            if (usuario.Estatus != EstatusUsuario.Activo)
+            {
+                throw new UnauthorizedAccessException("Usuario inactivo o bloqueado");
+            }
+
+            // Registrar acceso
+            usuario.RegistrarAcceso();
+            await _usuarioRepository.UpdateAsync(usuario);
+            await _usuarioRepository.SaveChangesAsync();
+        }
+
+        // 3. Generar tokens JWT propios del sistema
+        var roles = usuario.UsuarioRoles.Select(ur => ur.Rol.Nombre).ToList();
+        var accessToken = _tokenService.GenerateAccessToken(usuario.Id, usuario.Email, roles);
+        var refreshToken = _tokenService.GenerateRefreshToken();
+
+        // 4. Crear respuesta
+        return new LoginResponseDto
+        {
+            AccessToken = accessToken,
+            RefreshToken = refreshToken,
+            ExpiresIn = 3600, // 1 hora en segundos
+            Usuario = new UsuarioDto
+            {
+                Id = usuario.Id,
+                Nombre = usuario.Nombre,
+                ApellidoPaterno = usuario.ApellidoPaterno,
+                ApellidoMaterno = usuario.ApellidoMaterno,
+                Email = usuario.Email,
+                Telefono = usuario.Telefono,
+                NombreCompleto = usuario.NombreCompleto,
+                Estatus = usuario.Estatus,
+                UltimoAccesoAt = usuario.UltimoAccesoAt,
+                Roles = roles,
+                TienePoliticasAceptadas = usuario.TienePoliticasAceptadas(_policiesSettings.CurrentVersion),
+                CreatedAt = usuario.CreatedAt
+            }
+        };
+    }
+
+    private async Task<Usuario> CreateUserFromFirebaseAsync(string email, string? displayName, string firebaseUid)
+    {
+        // Crear un password hash aleatorio (no se usará para login con Firebase)
+        var randomPassword = Guid.NewGuid().ToString();
+        _passwordHasher.CreatePasswordHash(randomPassword, out string passwordHash, out string passwordSalt);
+
+        // Parsear el nombre si viene en displayName
+        var (nombre, apellidoPaterno, apellidoMaterno) = ParseDisplayName(displayName);
+
+        // Crear usuario
+        var usuario = new Usuario
+        {
+            Nombre = nombre,
+            ApellidoPaterno = apellidoPaterno,
+            ApellidoMaterno = apellidoMaterno,
+            Email = email.ToLower(),
+            PasswordHash = passwordHash,
+            PasswordSalt = passwordSalt,
+            Estatus = EstatusUsuario.Activo,
+            Telefono = null // Se puede actualizar después
+        };
+
+        usuario.AceptarPoliticas(_policiesSettings.CurrentVersion);
+
+        // Asignar rol de Adoptante por defecto
+        var rolAdoptante = await _rolRepository.GetByNameAsync(Roles.Adoptante);
+        if (rolAdoptante != null)
+        {
+            usuario.UsuarioRoles.Add(new UsuarioRol
+            {
+                UsuarioId = usuario.Id,
+                RolId = rolAdoptante.Id
+            });
+        }
+
+        // Guardar usuario
+        await _usuarioRepository.CreateAsync(usuario);
+        usuario.RegistrarAcceso();
+        await _usuarioRepository.SaveChangesAsync();
+
+        return usuario;
+    }
+
+    private static (string Nombre, string ApellidoPaterno, string ApellidoMaterno) ParseDisplayName(string? displayName)
+    {
+        if (string.IsNullOrWhiteSpace(displayName))
+        {
+            return ("Usuario", "Google", string.Empty);
+        }
+
+        var parts = displayName.Trim().Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        
+        return parts.Length switch
+        {
+            1 => (parts[0], string.Empty, string.Empty),
+            2 => (parts[0], parts[1], string.Empty),
+            >= 3 => (parts[0], parts[1], string.Join(" ", parts.Skip(2))),
+            _ => ("Usuario", "Google", string.Empty)
+        };
     }
 }

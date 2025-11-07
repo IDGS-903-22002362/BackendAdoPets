@@ -73,7 +73,7 @@ public class VerificarDisponibilidadDto
     public Guid? SalaId { get; set; }
 }
 
-public class DisponibilidadResponseDto
+public class VerificarDisponibilidadResponseDto
 {
     public bool Disponible { get; set; }
     public string? Mensaje { get; set; }
