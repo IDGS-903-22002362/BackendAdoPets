@@ -185,6 +185,34 @@ public class AuthController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Autenticación con Firebase (para apps móviles)
+    /// Intercambia un Firebase ID Token por un JWT del sistema
+    /// </summary>
+    [HttpPost("firebase")]
+    [ProducesResponseType(typeof(ApiResponse<LoginResponseDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(typeof(ApiResponse<object>), StatusCodes.Status400BadRequest)]
+    public async Task<IActionResult> LoginWithFirebase([FromBody] FirebaseLoginRequestDto request)
+    {
+        try
+        {
+            var result = await _authService.LoginWithFirebaseAsync(request);
+            _logger.LogInformation("Inicio de sesión con Firebase exitoso: {Email}", result.Usuario.Email);
+            return Ok(ApiResponse<LoginResponseDto>.SuccessResponse(result, "Autenticación con Firebase exitosa"));
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            _logger.LogWarning("Intento de autenticación con Firebase fallido: {Message}", ex.Message);
+            return Unauthorized(ApiResponse<object>.ErrorResponse("Token de Firebase inválido", ex.Message));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al autenticar con Firebase");
+            return BadRequest(ApiResponse<object>.ErrorResponse("Error al autenticar con Firebase", ex.Message));
+        }
+    }
+
     #region Helper Methods
 
     private Guid GetCurrentUserId()

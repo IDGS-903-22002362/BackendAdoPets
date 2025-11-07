@@ -23,6 +23,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUsuarioService, UsuarioService>();
         services.AddSingleton<ITokenService, TokenService>();
         services.AddSingleton<IPasswordHasher, PasswordHasher>();
+        services.AddSingleton<IFirebaseAuthService, FirebaseAuthService>();
         
         // Servicios de Cl�nica
         services.AddScoped<ITicketService, TicketService>();

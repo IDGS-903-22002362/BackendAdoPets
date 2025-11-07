@@ -4,6 +4,8 @@
 
 Se han creado las APIs/Endpoints para autenticación y manejo de usuarios siguiendo las mejores prácticas de Clean Architecture y SOLID.
 
+**NUEVO:** Ahora incluye autenticación con Firebase para aplicaciones móviles, permitiendo login con Google y otros proveedores manteniendo el sistema JWT propio.
+
 ## ??? Arquitectura Implementada
 
 ### Capas Creadas:
@@ -102,6 +104,11 @@ Asegúrate de tener configurado:
   },
   "Policies": {
     "CurrentVersion": "1.0.0"
+  },
+  "Firebase": {
+    "ProjectId": "tu-proyecto-firebase",
+    "PrivateKey": "-----BEGIN PRIVATE KEY-----\nMIIEvQIBADANBgkqh...\n-----END PRIVATE KEY-----\n",
+    "ClientEmail": "firebase-adminsdk-xxxxx@tu-proyecto.iam.gserviceaccount.com"
   }
 }
 ```
@@ -252,40 +259,44 @@ Asignar roles a usuario (Solo Admin)
    - Al menos una minúscula
    - Al menos un número
    - Al menos un carácter especial
+6. **Firebase Authentication**: 
+   - Validación de tokens de Firebase
+   - Auto-registro de usuarios móviles
+   - Compatibilidad con múltiples proveedores de identidad
 
-## ?? Probar los Endpoints
+## ?? Casos de Uso
 
-1. **Iniciar la aplicación**
-```bash
-dotnet run
-```
+### Caso 1: Usuario Móvil Nuevo (Primera vez con Google)
+1. Usuario hace login con Google en la app Flutter
+2. Firebase genera un ID Token
+3. App envía el token a `/api/v1/auth/firebase`
+4. Backend valida el token con Firebase
+5. Backend crea usuario automáticamente en BD local
+6. Backend genera y devuelve JWT propio
+7. App usa el JWT para todas las peticiones subsecuentes
 
-2. **Acceder a Swagger**
-```
-https://localhost:5001
-```
+### Caso 2: Usuario Móvil Existente
+1. Usuario hace login con Google en la app Flutter
+2. Firebase genera un ID Token
+3. App envía el token a `/api/v1/auth/firebase`
+4. Backend valida el token con Firebase
+5. Backend encuentra usuario existente por email
+6. Backend genera y devuelve JWT propio
+7. App usa el JWT para todas las peticiones subsecuentes
 
-3. **Registrar un usuario**
-```bash
-POST /api/v1/auth/register
-```
+### Caso 3: Usuario Web (Sin cambios)
+1. Usuario ingresa email y contraseña
+2. Backend valida credenciales contra BD local
+3. Backend genera y devuelve JWT propio
+4. Frontend web usa el JWT para todas las peticiones
 
-4. **Iniciar sesión**
-```bash
-POST /api/v1/auth/login
-```
+## ?? Ventajas de esta Arquitectura
 
-5. **Usar el token** en los endpoints protegidos
-```
-Authorization: Bearer {tu_token}
-```
-
-## ?? Notas Importantes
-
-1. Necesitas ejecutar las migraciones antes de usar la API
-2. La base de datos debe tener al menos los roles básicos creados
-3. El refresh token aún no está completamente implementado (pendiente de almacenamiento en BD)
-4. Por defecto, el registro asigna el rol "Adoptante"
+1. **Un solo sistema de autorización**: Todos los endpoints usan JWT propio
+2. **Múltiples formas de autenticación**: Email/Password (web) y Firebase (móvil)
+3. **Roles unificados**: Los mismos roles aplican para web y móvil
+4. **Base de datos centralizada**: Todos los usuarios en una sola BD
+5. **Escalable**: Fácil agregar más proveedores (Apple, Facebook, etc.)
 
 ## ?? Próximos Pasos Recomendados
 
@@ -295,6 +306,9 @@ Authorization: Bearer {tu_token}
 4. Agregar verificación de email
 5. Implementar 2FA (Autenticación de dos factores)
 6. Agregar logs de auditoría de accesos
+7. Agregar soporte para Apple Sign In
+8. Implementar sincronización de foto de perfil de Google
+9. Agregar refresh token de Firebase
 
 ## ?? Troubleshooting
 
@@ -303,3 +317,8 @@ Si encuentras errores de compilación:
 2. Asegúrate de agregar `builder.Services.AddApplicationServices();` en Program.cs
 3. Ejecuta `dotnet restore`
 4. Limpia y reconstruye: `dotnet clean && dotnet build`
+
+### Errores de Firebase:
+1. **"Firebase no está inicializado"**: Verifica las credenciales en appsettings.json
+2. **"Token inválido"**: El token de Firebase expiró, solicitar uno nuevo desde la app
+3. **"Email no encontrado en token"**: Asegúrate de que el usuario tiene email en Firebase
