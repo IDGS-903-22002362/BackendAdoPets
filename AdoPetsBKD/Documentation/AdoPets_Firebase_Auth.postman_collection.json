@@ -1,0 +1,154 @@
+{
+  "info": {
+    "name": "AdoPets - Firebase Authentication",
+    "description": "Colección de Postman para probar autenticación con Firebase",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Auth",
+      "item": [
+        {
+          "name": "Login con Firebase (Móvil)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idToken\": \"{{firebase_id_token}}\",\n  \"deviceInfo\": \"Postman Test\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/firebase",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "firebase"]
+            },
+            "description": "Intercambia un Firebase ID Token por un JWT del sistema AdoPets.\n\n**Cómo obtener un Firebase ID Token:**\n1. Ve a https://console.firebase.google.com/\n2. Selecciona tu proyecto\n3. Authentication ? Users ? Agrega un usuario de prueba\n4. Usa el Firebase Auth REST API o la consola para generar un ID Token\n5. Copia el token y pégalo en la variable {{firebase_id_token}}"
+          },
+          "response": []
+        },
+        {
+          "name": "Login tradicional (Web)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@ejemplo.com\",\n  \"password\": \"Password123!\",\n  \"rememberMe\": false\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/login",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "login"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Obtener usuario actual",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "description": "Token JWT obtenido del login"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/auth/me",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "auth", "me"]
+            },
+            "description": "Obtiene información del usuario autenticado usando el JWT"
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Mascotas (Ejemplo de uso del JWT)",
+      "item": [
+        {
+          "name": "Listar mascotas",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{access_token}}",
+                "description": "JWT obtenido de Firebase o login tradicional"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/api/v1/mascotas",
+              "host": ["{{base_url}}"],
+              "path": ["api", "v1", "mascotas"]
+            },
+            "description": "Este endpoint usa el mismo JWT obtenido tanto de Firebase como de login tradicional"
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "https://localhost:5001",
+      "type": "string"
+    },
+    {
+      "key": "firebase_id_token",
+      "value": "TU_FIREBASE_ID_TOKEN_AQUI",
+      "type": "string",
+      "description": "Token de Firebase obtenido desde la app móvil"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string",
+      "description": "JWT del sistema AdoPets (se guarda automáticamente desde las respuestas)"
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          ""
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Guardar automáticamente el access_token de las respuestas de login",
+          "if (pm.response.code === 200) {",
+          "    try {",
+          "        const jsonData = pm.response.json();",
+          "        if (jsonData.data && jsonData.data.accessToken) {",
+          "            pm.collectionVariables.set('access_token', jsonData.data.accessToken);",
+          "            console.log('? Access token guardado automáticamente');",
+          "        }",
+          "    } catch (e) {",
+          "        console.log('No se pudo guardar el token');",
+          "    }",
+          "}"
+        ]
+      }
+    }
+  ]
+}

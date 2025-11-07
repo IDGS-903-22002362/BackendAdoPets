@@ -12,4 +12,9 @@ public interface IAuthService
     Task<LoginResponseDto> RefreshTokenAsync(string refreshToken);
     Task<bool> ChangePasswordAsync(Guid userId, ChangePasswordRequestDto request);
     Task LogoutAsync(Guid userId);
+    
+    /// <summary>
+    /// Autenticación con Firebase ID Token (para apps móviles)
+    /// </summary>
+    Task<LoginResponseDto> LoginWithFirebaseAsync(FirebaseLoginRequestDto request);
 }
