@@ -11,7 +11,6 @@ namespace AdoPetsBKD.Controllers
     public class AdopcionController : ControllerBase
     {
         private readonly IUMascotaService _mascotaService;
-        // Asumiendo que ILogger<MascotaController> fue un error de copia/pega y debería ser ILogger<AdopcionController>
         private readonly ILogger<MascotaController> _logger;
 
         public AdopcionController(IUMascotaService mascotaService, ILogger<MascotaController> logger)

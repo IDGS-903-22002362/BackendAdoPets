@@ -185,7 +185,6 @@ namespace AdoPetsBKD.Infrastructure.Services
                 if (string.IsNullOrWhiteSpace(incoming))
                     throw new InvalidOperationException("Contenido de la imagen inválido.");
 
-                // Si parece una URL/ruta corta la guardamos tal cual; si es base64/data-uri la guardamos en disco y guardamos la ruta
                 bool isLikelyUrl = incoming.StartsWith("http", StringComparison.OrdinalIgnoreCase)
                                    || incoming.StartsWith("uploads/", StringComparison.OrdinalIgnoreCase)
                                    || incoming.StartsWith("/uploads/", StringComparison.OrdinalIgnoreCase)
@@ -198,7 +197,6 @@ namespace AdoPetsBKD.Infrastructure.Services
                 }
                 else
                 {
-                    // Guarda la imagen en wwwroot/uploads/mascotas/{mascotaId} y devuelve la ruta relativa para el frontend
                     storageValue = await SaveBase64ImageToLocalAsync(incoming, mascotaId);
                 }
 
@@ -251,7 +249,6 @@ namespace AdoPetsBKD.Infrastructure.Services
         // Guarda base64/data-uri como archivo en disco y devuelve la ruta relativa (/uploads/mascotas/{id}/{file})
         private static async Task<string> SaveBase64ImageToLocalAsync(string base64OrDataUri, Guid mascotaId, int maxWidth = 1600, int jpegQuality = 75)
         {
-            // Extraer base64 si viene como data URI
             var base64 = base64OrDataUri;
             var comma = base64.IndexOf(',');
             if (comma >= 0) base64 = base64[(comma + 1)..];
@@ -265,16 +262,12 @@ namespace AdoPetsBKD.Infrastructure.Services
             {
                 throw new InvalidOperationException("Base64 inválido.");
             }
-
-            // Preparar directorio
             var uploadsDir = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "mascotas", mascotaId.ToString());
             Directory.CreateDirectory(uploadsDir);
 
-            // Cargar imagen con ImageSharp (compatible cross-platform)
             using var inMs = new MemoryStream(bytes);
             using Image image = await Image.LoadAsync(inMs);
 
-            // Redimensionar si es necesario (mantener aspecto)
             if (image.Width > maxWidth)
             {
                 var ratio = maxWidth / (double)image.Width;
@@ -283,14 +276,12 @@ namespace AdoPetsBKD.Infrastructure.Services
                 image.Mutate(x => x.Resize(new ResizeOptions { Size = new Size(newWidth, newHeight), Mode = ResizeMode.Max }));
             }
 
-            // Decidir extensión: preferir jpeg para compactar
             var fileName = $"{Guid.NewGuid()}.jpg";
             var fullPath = Path.Combine(uploadsDir, fileName);
 
             var encoder = new JpegEncoder { Quality = jpegQuality };
             await image.SaveAsJpegAsync(fullPath, encoder);
 
-            // Devolver ruta relativa accesible desde el frontend (asegúrate de servir wwwroot)
             var relative = $"/uploads/mascotas/{mascotaId}/{fileName}";
             return relative;
         }
@@ -300,20 +291,17 @@ namespace AdoPetsBKD.Infrastructure.Services
             if (foto == null)
                 throw new InvalidOperationException("La foto no existe");
 
-            // Intentar eliminar el archivo físico si StorageKey apunta a /uploads/...
             if (!string.IsNullOrEmpty(foto.StorageKey))
             {
                 try
                 {
                     string? relativePath = null;
 
-                    // Caso: ruta relativa "/uploads/..." o "uploads/..."
                     if (foto.StorageKey.StartsWith("/"))
                         relativePath = foto.StorageKey.TrimStart('/');
                     else if (foto.StorageKey.StartsWith("uploads/", StringComparison.OrdinalIgnoreCase))
                         relativePath = foto.StorageKey;
 
-                    // Caso: URL absoluta que contiene "/uploads/..."
                     if (relativePath == null && Uri.TryCreate(foto.StorageKey, UriKind.Absolute, out var uri) && uri.AbsolutePath.Contains("/uploads/"))
                     {
                         relativePath = uri.AbsolutePath.TrimStart('/');
@@ -321,7 +309,6 @@ namespace AdoPetsBKD.Infrastructure.Services
 
                     if (!string.IsNullOrEmpty(relativePath))
                     {
-                        // Normalizar separadores y construir ruta en disco
                         var localPath = relativePath.Replace('/', Path.DirectorySeparatorChar);
                         var filePath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", localPath);
 
@@ -333,9 +320,8 @@ namespace AdoPetsBKD.Infrastructure.Services
                 }
                 catch (Exception ex)
                 {
-                    // opcional: registrar el error en el logger si está disponible
-                    // _logger?.LogWarning(ex, "No se pudo eliminar el fichero físico de la foto.");
-                    // No abortamos el flujo; procedemos a persistir cambios en BD
+                   
+
                 }
             }
 
