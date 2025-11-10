@@ -18,6 +18,13 @@ public class SolicitudCitaDigitalService : ISolicitudCitaDigitalService
 
     public async Task<SolicitudCitaDigitalDto> CreateSolicitudAsync(CreateSolicitudCitaDigitalDto dto, Guid createdBy)
     {
+        // Verificar que el usuario existe en la base de datos
+        var usuarioExiste = await _context.Usuarios.AnyAsync(u => u.Id == createdBy);
+        if (!usuarioExiste)
+        {
+            throw new InvalidOperationException("El usuario autenticado no existe en la base de datos");
+        }
+
         // Verificar disponibilidad
         var disponibilidad = await VerificarDisponibilidadAsync(new VerificarDisponibilidadDto
         {
@@ -30,7 +37,7 @@ public class SolicitudCitaDigitalService : ISolicitudCitaDigitalService
         var solicitud = new SolicitudCitaDigital
         {
             Id = Guid.NewGuid(),
-            SolicitanteId = dto.SolicitanteId,
+            SolicitanteId = createdBy, // Usar el usuario autenticado del token JWT
             MascotaId = dto.MascotaId,
             NombreMascota = dto.NombreMascota,
             EspecieMascota = dto.EspecieMascota,
@@ -234,6 +241,25 @@ public class SolicitudCitaDigitalService : ISolicitudCitaDigitalService
         var solicitud = await _context.SolicitudesCitasDigitales.FindAsync(dto.SolicitudId)
             ?? throw new Exception("Solicitud no encontrada");
 
+        // ? VALIDACIÓN DE PAGO DEL 50% - AGREGADO
+        if (!solicitud.PagoAnticipoId.HasValue)
+        {
+            throw new InvalidOperationException("Debe completar el pago del anticipo del 50% antes de confirmar la cita");
+        }
+
+        // Verificar que el pago esté completado
+        var pagoAnticipo = await _context.Pagos.FindAsync(solicitud.PagoAnticipoId.Value);
+        if (pagoAnticipo == null || pagoAnticipo.Estado != EstadoPago.Completado)
+        {
+            throw new InvalidOperationException("El pago del anticipo debe estar completado para confirmar la cita");
+        }
+
+        // Verificar que el monto sea al menos el 50%
+        if (pagoAnticipo.Monto < solicitud.MontoAnticipo)
+        {
+            throw new InvalidOperationException($"El monto del anticipo debe ser al menos {solicitud.MontoAnticipo:C} (50% del costo total)");
+        }
+
         // Crear la cita
         var cita = new Cita
         {
@@ -248,6 +274,7 @@ public class SolicitudCitaDigitalService : ISolicitudCitaDigitalService
             EndAt = dto.FechaHoraConfirmada.AddMinutes(dto.DuracionMin),
             DuracionMin = dto.DuracionMin,
             MotivoConsulta = solicitud.MotivoConsulta,
+            PagoId = pagoAnticipo.Id, // Vincular el pago a la cita
             CreatedBy = dto.ConfirmadoPorId
         };
 

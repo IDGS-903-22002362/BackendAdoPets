@@ -29,6 +29,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ITicketService, TicketService>();
         services.AddScoped<ISolicitudCitaDigitalService, SolicitudCitaDigitalService>();
         services.AddScoped<IPagoService, PagoService>();
+        services.AddScoped<IServicioService, ServicioService>(); // Nuevo servicio
+    
+        // Servicio de PayPal
+        services.AddScoped<IPayPalClient, PayPalClient>();
 
         // Servicios de Empleados 
         services.AddScoped<IEmpleadoService, EmpleadoService>();
@@ -36,10 +40,9 @@ public static class ServiceCollectionExtensions
 
         // Servicios de Mascotas
         services.AddScoped<IUMascotaService, MascotaService>();
-
-        // Servicios de Especialidades 
-        services.AddScoped<IEspecialidadRepositoy, EspecialidadRepository>();
-        services.AddScoped<IEspecialidadService, EspecialidadService>();
+        
+        // Servicio de Mascotas de Usuario
+        services.AddScoped<IMascotaUsuarioService, MascotaUsuarioService>();
         
         return services;
     }

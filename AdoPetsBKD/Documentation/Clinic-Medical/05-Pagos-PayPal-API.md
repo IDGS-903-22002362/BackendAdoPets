@@ -3,10 +3,12 @@
 ## Descripción General
 El módulo de **Pagos** gestiona transacciones monetarias relacionadas con servicios veterinarios, integrándose con **PayPal** para procesamiento de pagos en línea. Soporta pagos completos y sistema de **anticipos del 50%** del costo total.
 
+**? Actualizado con PayPalCheckoutSdk v1.0.4** - SDK moderno y compatible con .NET 9
+
 ---
 
 ## Características Principales
-- ? Integración completa con PayPal SDK
+- ? Integración completa con **PayPalCheckoutSdk v1.0.4** (SDK más reciente)
 - ? Soporte para anticipos (50% del total)
 - ? Pagos completos (100%)
 - ? Webhooks de PayPal para actualización automática
@@ -14,6 +16,7 @@ El módulo de **Pagos** gestiona transacciones monetarias relacionadas con servic
 - ? Registro de estado de transacciones
 - ? Cancelación de pagos
 - ? Historial de pagos por usuario
+- ? Compatible con .NET 9
 
 ---
 
@@ -457,242 +460,126 @@ var saldoPendiente = costoTotal - totalPagado;
 
 ## Integración con PayPal SDK
 
+### ? SDK Moderno - PayPalCheckoutSdk v1.0.4
+
+**Instalado y Configurado:**
+```xml
+<PackageReference Include="PayPalCheckoutSdk" Version="1.0.4" />
+<PackageReference Include="PayPalHttp" Version="1.0.1" />
+```
+
 ### Configuración (appsettings.json)
 ```json
 {
   "PayPal": {
     "Mode": "sandbox",
     "ClientId": "your-paypal-client-id",
-    "ClientSecret": "your-paypal-client-secret",
-    "WebhookId": "your-webhook-id"
+    "ClientSecret": "your-paypal-client-secret"
   }
 }
 ```
 
-### Inicialización del SDK
+### Inicialización del SDK (Moderno)
 ```csharp
-var config = new Dictionary<string, string>
-{
-    { "mode", "sandbox" }, // o "live" en producción
-    { "clientId", Configuration["PayPal:ClientId"] },
-    { "clientSecret", Configuration["PayPal:ClientSecret"] }
-};
+using PayPalCheckoutSdk.Core;
+using PayPalCheckoutSdk.Orders;
 
-var accessToken = new OAuthTokenCredential(config).GetAccessToken();
-var apiContext = new APIContext(accessToken) { Config = config };
+// Configurar ambiente según el modo
+PayPalEnvironment environment = settings.Mode == "live"
+    ? new LiveEnvironment(clientId, clientSecret)
+    : new SandboxEnvironment(clientId, clientSecret);
+
+// Crear cliente HTTP de PayPal
+var client = new PayPalHttpClient(environment);
 ```
 
-### Crear Orden
+### Crear Orden (Moderno)
 ```csharp
-var payment = new Payment
+var orderRequest = new OrderRequest
 {
-    intent = "sale",
-    payer = new Payer { payment_method = "paypal" },
-    transactions = new List<Transaction>
+    CheckoutPaymentIntent = "CAPTURE",
+    PurchaseUnits = new List<PurchaseUnitRequest>
     {
-        new Transaction
+        new PurchaseUnitRequest
         {
-            amount = new Amount
+            AmountWithBreakdown = new AmountWithBreakdown
             {
-                currency = "USD",
-                total = "609.00"
+                CurrencyCode = "MXN",
+                Value = "609.00"
             },
-            description = "Anticipo 50% para cirugía de esterilización"
+            Description = "Anticipo 50% para cirugía de esterilización"
         }
     },
-    redirect_urls = new RedirectUrls
+    ApplicationContext = new ApplicationContext
     {
-        return_url = "https://app.adopets.com/payment/success",
-        cancel_url = "https://app.adopets.com/payment/cancel"
+        ReturnUrl = "https://app.adopets.com/payment/success",
+        CancelUrl = "https://app.adopets.com/payment/cancel",
+        BrandName = "AdoPets",
+        LandingPage = "BILLING",
+        UserAction = "PAY_NOW"
     }
 };
 
-var createdPayment = payment.Create(apiContext);
+var request = new OrdersCreateRequest();
+request.Prefer("return=representation");
+request.RequestBody(orderRequest);
+
+var response = await client.Execute(request);
+var order = response.Result<Order>();
 ```
 
----
-
-## Ejemplos de Uso
-
-### Ejemplo 1: Pago en Efectivo
-```bash
-curl -X POST https://api.adopets.com/api/pagos \
-  -H "Authorization: Bearer {token}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "citaId": "12345678-1234-1234-1234-123456789012",
-    "monto": 500.00,
-    "metodoPago": "Efectivo",
-    "tipoPago": "Completo",
-    "conceptoPago": "Pago de consulta general",
-    "referencia": "REC-001",
-    "notas": "Pago en efectivo, sin cambio"
-  }'
-```
-
-### Ejemplo 2: Crear Orden de PayPal para Anticipo
-```bash
-curl -X POST https://api.adopets.com/api/pagos/paypal/create-order \
-  -H "Authorization: Bearer {token}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "citaId": "12345678-1234-1234-1234-123456789012",
-    "monto": 609.00,
-    "tipoPago": "Anticipo",
-    "conceptoPago": "Anticipo 50% para cirugía de esterilización",
-    "descripcionDetallada": "Pago anticipado del 50% del costo total de $1,218.00"
-  }'
-```
-
-**Respuesta:**
-```json
-{
-  "success": true,
-  "data": {
-    "orderId": "PAYPAL-ORDER-123456789",
-    "approvalUrl": "https://www.paypal.com/checkoutnow?token=EC-123",
-    "pagoId": "guid"
-  }
-}
-```
-
-### Ejemplo 3: Capturar Pago de PayPal
-```bash
-curl -X POST https://api.adopets.com/api/pagos/paypal/capture \
-  -H "Authorization: Bearer {token}" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "orderId": "PAYPAL-ORDER-123456789"
-  }'
-```
-
-### Ejemplo 4: Consultar Historial de Pagos
-```bash
-curl -X GET https://api.adopets.com/api/pagos/usuario/12345678-1234-1234-1234-123456789012 \
-  -H "Authorization: Bearer {token}"
-```
-
-### Ejemplo 5: Cancelar Pago
-```bash
-curl -X PUT https://api.adopets.com/api/pagos/12345678-1234-1234-1234-123456789012/cancelar \
-  -H "Authorization: Bearer {admin-token}" \
-  -H "Content-Type: application/json" \
-  -d '"Error en el monto, requiere corrección"'
-```
-
----
-
-## Integración con Otros Módulos
-
-### Módulo de Citas
-- Los pagos se vinculan a citas específicas
-- Una cita puede tener múltiples pagos (anticipo + saldo)
-- El estado de pago afecta la confirmación de la cita
-
-### Módulo de Tickets
-- El ticket documenta los servicios
-- El pago registra la transacción monetaria
-- Un ticket puede tener varios pagos asociados
-
-### Módulo de Notificaciones
-- Email de confirmación al completar pago
-- SMS para pagos mayores a cierto monto
-- Recordatorio de saldo pendiente
-
----
-
-## Seguridad
-
-### Mejores Prácticas
-1. **Nunca almacenar datos de tarjetas** - PayPal maneja toda la información sensible
-2. **Validar webhooks** - Verificar firma de PayPal antes de procesar
-3. **HTTPS obligatorio** - Todas las comunicaciones deben ser seguras
-4. **Logs de auditoría** - Registrar todas las transacciones
-5. **Timeouts** - Implementar timeouts para llamadas a PayPal API
-
-### Validación de Webhooks
+### Capturar Orden (Moderno)
 ```csharp
-public bool ValidarWebhookPayPal(HttpRequest request)
-{
-    var headers = request.Headers;
-    var body = await new StreamReader(request.Body).ReadToEndAsync();
-    
-    var webhookEvent = WebhookEvent.ValidateReceivedEvent(
-        apiContext,
-        headers,
-        body,
-        Configuration["PayPal:WebhookId"]
-    );
-    
-    return webhookEvent != null;
-}
+var request = new OrdersCaptureRequest(orderId);
+request.Prefer("return=representation");
+request.RequestBody(new OrderActionRequest());
+
+var response = await client.Execute(request);
+var order = response.Result<Order>();
+
+// Extraer información del pago capturado
+var capture = order.PurchaseUnits?.FirstOrDefault()?.Payments?.Captures?.FirstOrDefault();
+var captureId = capture?.Id;
+var payerEmail = order.Payer?.Email;
+var payerName = order.Payer?.Name?.GivenName + " " + order.Payer?.Name?.Surname;
 ```
 
----
+### Ventajas del Nuevo SDK
 
-## Manejo de Errores
-
-### Errores Comunes de PayPal
-
-| Código | Descripción | Solución |
-|--------|-------------|----------|
-| **INSUFFICIENT_FUNDS** | Fondos insuficientes | Solicitar otro método de pago |
-| **TRANSACTION_REFUSED** | Transacción rechazada | Contactar al banco |
-| **INVALID_ACCOUNT_STATUS** | Cuenta PayPal inválida | Verificar cuenta de PayPal |
-| **PAYMENT_ALREADY_DONE** | Pago duplicado | Verificar estado del pago |
-
-### Ejemplo de Manejo
-```csharp
-try
-{
-    var pago = await _pagoService.CreatePayPalOrderAsync(dto, userId);
-    return Ok(ApiResponse<PayPalOrderResponseDto>.SuccessResponse(pago));
-}
-catch (PayPalException ex)
-{
-    _logger.LogError(ex, "Error de PayPal: {Message}", ex.Message);
-    return BadRequest(ApiResponse<PayPalOrderResponseDto>.ErrorResponse(
-        "Error al procesar pago con PayPal: " + ex.Message
-    ));
-}
-```
+| Característica | SDK Antiguo | SDK Moderno (Actual) |
+|----------------|-------------|----------------------|
+| Paquete | PayPal 1.9.1 | PayPalCheckoutSdk 1.0.4 |
+| Async/Await | ? No nativo | ? Nativo |
+| .NET 9 | ?? Sin garantía | ? Compatible |
+| Performance | ?? Regular | ? Optimizado |
+| Mantenimiento | ? Deprecado | ? Activo |
+| Documentación | ?? Antigua | ? Actualizada |
 
 ---
 
-## Pruebas (Sandbox)
+## Documentación Adicional
 
-### Cuentas de Prueba PayPal
-PayPal proporciona cuentas sandbox para testing:
-- **Comprador:** buyer@adopets.com / password123
-- **Vendedor:** seller@adopets.com / password123
+### ?? Guías Específicas de PayPal:
 
-### URLs de Sandbox
-- Dashboard: https://developer.paypal.com/developer/accounts
-- Checkout: https://www.sandbox.paypal.com
+1. **[PAYPAL_SETUP_GUIDE.md](./PAYPAL_SETUP_GUIDE.md)**
+   - Guía paso a paso para obtener credenciales
+   - Configuración de cuentas sandbox
+   - Mejores prácticas de seguridad
 
-### Tarjetas de Prueba
-PayPal Sandbox acepta tarjetas de prueba:
-- **Visa:** 4032032184654880
-- **MasterCard:** 5424180779220433
+2. **[PAYPAL_SDK_UPDATE.md](./PAYPAL_SDK_UPDATE.md)** ? NUEVO
+   - Información del SDK moderno
+   - Comparación SDK antiguo vs nuevo
+   - Guía de migración
 
----
+3. **[PAYPAL_API_TESTS.md](./PAYPAL_API_TESTS.md)**
+   - Colección completa de pruebas
+   - Ejemplos de request/response
+   - Configuración de Postman
 
-## Notas Técnicas
-
-### Performance
-- Llamadas a PayPal API pueden tardar 2-5 segundos
-- Implementar retry logic para fallos temporales
-- Cachear configuración de PayPal
-
-### Moneda
-- Por defecto: USD (Dólares Americanos)
-- Se puede configurar MXN para México
-- Conversión de moneda la maneja PayPal
-
-### Comisiones
-- PayPal cobra comisión por transacción (~3.4% + $0.30 USD)
-- Comisión se resta del monto recibido
-- Configurar quién paga la comisión (vendedor/comprador)
+4. **[PAYPAL_FRONTEND_EXAMPLES.md](./PAYPAL_FRONTEND_EXAMPLES.md)**
+   - Componentes React/TypeScript
+   - Hook usePayPal
+   - Integración completa
 
 ---
 
@@ -701,4 +588,4 @@ PayPal Sandbox acepta tarjetas de prueba:
 **Módulo:** Clínica & Historial Médico  
 **Versión API:** 1.0  
 **Última Actualización:** Enero 2024  
-**PayPal SDK:** PayPal .NET SDK v1.x
+**PayPal SDK:** PayPalCheckoutSdk v1.0.4 (Moderno) ?

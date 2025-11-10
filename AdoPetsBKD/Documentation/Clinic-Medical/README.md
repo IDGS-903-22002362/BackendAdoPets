@@ -100,16 +100,19 @@ Este directorio contiene la documentación completa de los módulos desarrollados 
 ### 5. [Pagos con PayPal API](./05-Pagos-PayPal-API.md)
 **Módulo:** Sistema de Pagos Integrado con PayPal  
 **Prioridad:** Alta  
-**Complejidad:** Alta
+**Complejidad:** Alta  
+**Estado:** ? Implementado y Listo  
+**SDK:** PayPalCheckoutSdk v1.0.4 (Moderno) ?
 
 **Funcionalidades:**
-- ? Integración completa con PayPal SDK
+- ? Integración completa con **PayPalCheckoutSdk v1.0.4** (SDK más reciente)
 - ? Sistema de **anticipos del 50%** del costo total
 - ? Soporte para múltiples métodos de pago (PayPal, Efectivo, Tarjeta, Transferencia)
 - ? Webhooks de PayPal para actualización automática
 - ? Registro de transacciones con estados (Pendiente, Completado, Fallido, Cancelado)
 - ? Historial de pagos por usuario
 - ? Generación de folios únicos
+- ? Compatible con .NET 9
 
 **Endpoints Principales:**
 - `POST /api/pagos` - Crear pago manual (Efectivo/Tarjeta)
@@ -123,6 +126,13 @@ Este directorio contiene la documentación completa de los módulos desarrollados 
 **Tipos de Pago:**
 - **Anticipo (50%):** Pago parcial al agendar
 - **Completo (100%):** Pago total por adelantado
+
+**?? Guías Adicionales de PayPal:**
+- **[Guía de Configuración de PayPal](./PAYPAL_SETUP_GUIDE.md)** - Paso a paso para obtener credenciales y configurar
+- **[Actualización del SDK](./PAYPAL_SDK_UPDATE.md)** ? NUEVO - Información del SDK moderno (v1.0.4)
+- **[Pruebas del API de PayPal](./PAYPAL_API_TESTS.md)** - Colección completa de pruebas con ejemplos
+- **[Ejemplos Frontend](./PAYPAL_FRONTEND_EXAMPLES.md)** - Componentes React/TypeScript listos para usar
+- **[Resumen Final](./PAYPAL_SDK_FINAL_SUMMARY.md)** - Estado actual y checklist completo
 
 ---
 
@@ -210,6 +220,66 @@ Este directorio contiene la documentación completa de los módulos desarrollados 
 - `GET/POST /api/valoraciones`
 - `GET /api/valoraciones/mascota/{mascotaId}`
 - `GET /api/valoraciones/mascota/{mascotaId}/ultima`
+
+---
+
+### 8. [Sistema Completo de Citas para Usuarios](./08-Sistema-Completo-Citas-Usuario-API.md) ? NUEVO
+**Módulo:** Sistema End-to-End de Citas Veterinarias  
+**Prioridad:** Alta  
+**Complejidad:** Alta  
+**Estado:** ? Documentado y Funcional
+
+**Descripción:**
+Documentación completa del flujo end-to-end que permite a los usuarios:
+- ?? Registrar sus propias mascotas (diferentes de las del refugio)
+- ?? Solicitar citas veterinarias en línea
+- ? Verificar disponibilidad de veterinarios y salas
+- ?? Pagar anticipo del 50% mediante PayPal
+- ?? Seguimiento en tiempo real del estado de sus solicitudes
+- ?? Consultar historial de citas y pagos
+
+**Características Destacadas:**
+- ? Separación clara entre mascotas del refugio (adopción) y mascotas de usuarios (citas)
+- ? Sistema de pago integrado con PayPal (anticipo + saldo)
+- ? Validación de permisos y seguridad (propietario/solicitante)
+- ? Gestión de fotos con redimensionamiento automático
+- ? Webhooks de PayPal para actualizaciones automáticas
+- ? Estados de solicitud desde creación hasta confirmación
+
+**Endpoints Principales:**
+- `GET/POST /api/MisMascotas` - Gestión de mascotas propias
+- `POST /api/MisMascotas/{id}/fotos` - Agregar fotos
+- `POST /api/SolicitudesCitasDigitales/verificar-disponibilidad` - Verificar horarios
+- `POST /api/SolicitudesCitasDigitales` - Crear solicitud
+- `GET /api/SolicitudesCitasDigitales/usuario/{id}` - Mis solicitudes
+- `POST /api/Pagos/paypal/create-order` - Crear orden PayPal
+- `POST /api/Pagos/paypal/capture-order` - Capturar pago
+- `PUT /api/SolicitudesCitasDigitales/{id}/cancelar` - Cancelar solicitud
+
+**Flujo Completo:**
+```
+Usuario ? Registrar mascota ? Verificar disponibilidad ? 
+Solicitar cita ? Sistema calcula 50% ? Crear orden PayPal ? 
+Usuario paga ? Webhook confirma ? Personal confirma ? Cita creada ?
+```
+
+**Modelos de Datos:**
+- `MascotaUsuario` (Tipo = DeUsuario, PropietarioId)
+- `SolicitudCitaDigital` (Estado, MontoAnticipo, PagoAnticipoId)
+- `Pago` (EsAnticipo, MontoTotal, MontoRestante)
+
+**Estados de Solicitud:**
+1. Pendiente ? 2. EnRevision ? 3. PendientePago ? 
+4. PagadaPendienteConfirmacion ? 5. Confirmada ?
+6. Rechazada / 7. Cancelada / 8. Expirada
+
+**Incluye:**
+- ?? Documentación completa de API REST
+- ?? Ejemplos de código JavaScript/TypeScript
+- ?? Manejo de errores comunes
+- ?? Consideraciones de seguridad
+- ?? Diagramas de flujo y secuencia
+- ?? Mejores prácticas
 
 ---
 

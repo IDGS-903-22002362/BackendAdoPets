@@ -7,7 +7,7 @@ using AdoPetsBKD.Application.Common;
 namespace AdoPetsBKD.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/v1/[controller]")]
 [Authorize]
 public class TicketsController : ControllerBase
 {

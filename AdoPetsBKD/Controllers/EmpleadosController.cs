@@ -12,7 +12,7 @@ namespace AdoPetsBKD.Controllers
     /// Controlador para gestionar empleados
     /// </summary>
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/v1/[controller]")]
     [Authorize]
     public class EmpleadosController : ControllerBase
     {

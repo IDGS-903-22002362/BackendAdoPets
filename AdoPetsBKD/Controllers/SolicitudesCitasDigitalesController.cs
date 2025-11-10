@@ -3,11 +3,12 @@ using Microsoft.AspNetCore.Authorization;
 using AdoPetsBKD.Application.DTOs.Clinica;
 using AdoPetsBKD.Application.Interfaces.Services;
 using AdoPetsBKD.Application.Common;
+using System.Security.Claims;
 
 namespace AdoPetsBKD.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/v1/[controller]")]
 [Authorize]
 public class SolicitudesCitasDigitalesController : ControllerBase
 {
@@ -18,16 +19,24 @@ public class SolicitudesCitasDigitalesController : ControllerBase
         _solicitudService = solicitudService;
     }
 
+    /// <summary>
+    /// Crea una nueva solicitud de cita digital.
+    /// El SolicitanteId se obtiene automáticamente del token JWT del usuario autenticado,
+    /// ignorando cualquier valor que venga en el DTO.
+    /// </summary>
     [HttpPost]
     public async Task<ActionResult<ApiResponse<SolicitudCitaDigitalDto>>> CreateSolicitud([FromBody] CreateSolicitudCitaDigitalDto dto)
     {
         try
         {
-            // TODO: Obtener ID del usuario autenticado del token JWT
-            var userId = Guid.Parse("00000000-0000-0000-0000-000000000001"); // Temporal
+            var userId = GetCurrentUserId();
             
             var solicitud = await _solicitudService.CreateSolicitudAsync(dto, userId);
             return Ok(ApiResponse<SolicitudCitaDigitalDto>.SuccessResponse(solicitud, "Solicitud creada exitosamente"));
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Unauthorized(ApiResponse<SolicitudCitaDigitalDto>.ErrorResponse("Usuario no autenticado"));
         }
         catch (Exception ex)
         {
@@ -99,11 +108,14 @@ public class SolicitudesCitasDigitalesController : ControllerBase
     {
         try
         {
-            // TODO: Obtener ID del usuario autenticado del token JWT
-            var userId = Guid.Parse("00000000-0000-0000-0000-000000000001"); // Temporal
+            var userId = GetCurrentUserId();
             
             var solicitud = await _solicitudService.MarcarComoEnRevisionAsync(id, userId);
             return Ok(ApiResponse<SolicitudCitaDigitalDto>.SuccessResponse(solicitud, "Solicitud en revisión"));
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Unauthorized(ApiResponse<SolicitudCitaDigitalDto>.ErrorResponse("Usuario no autenticado"));
         }
         catch (Exception ex)
         {
@@ -144,15 +156,31 @@ public class SolicitudesCitasDigitalesController : ControllerBase
     {
         try
         {
-            // TODO: Obtener ID del usuario autenticado del token JWT
-            var userId = Guid.Parse("00000000-0000-0000-0000-000000000001"); // Temporal
+            var userId = GetCurrentUserId();
             
             var solicitud = await _solicitudService.CancelarSolicitudAsync(id, userId);
             return Ok(ApiResponse<SolicitudCitaDigitalDto>.SuccessResponse(solicitud, "Solicitud cancelada"));
+        }
+        catch (UnauthorizedAccessException)
+        {
+            return Unauthorized(ApiResponse<SolicitudCitaDigitalDto>.ErrorResponse("Usuario no autenticado"));
         }
         catch (Exception ex)
         {
             return BadRequest(ApiResponse<SolicitudCitaDigitalDto>.ErrorResponse(ex.Message));
         }
+    }
+
+    /// <summary>
+    /// Obtiene el ID del usuario autenticado desde el token JWT
+    /// </summary>
+    private Guid GetCurrentUserId()
+    {
+        var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+        if (userIdClaim == null || !Guid.TryParse(userIdClaim.Value, out var userId))
+        {
+            throw new UnauthorizedAccessException("Usuario no autenticado");
+        }
+        return userId;
     }
 }

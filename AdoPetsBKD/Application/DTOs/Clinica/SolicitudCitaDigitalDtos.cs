@@ -2,7 +2,12 @@ namespace AdoPetsBKD.Application.DTOs.Clinica;
 
 public class CreateSolicitudCitaDigitalDto
 {
-    public Guid SolicitanteId { get; set; }
+    /// <summary>
+    /// Este campo es opcional y será ignorado.
+    /// Se usará automáticamente el ID del usuario autenticado del token JWT.
+    /// </summary>
+    public Guid? SolicitanteId { get; set; }
+    
     public Guid? MascotaId { get; set; }
     public string NombreMascota { get; set; } = string.Empty;
     public string? EspecieMascota { get; set; }
