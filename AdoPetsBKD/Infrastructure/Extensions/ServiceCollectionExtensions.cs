@@ -15,8 +15,8 @@ public static class ServiceCollectionExtensions
         // Repositories
         services.AddScoped<IUsuarioRepository, UsuarioRepository>();
         services.AddScoped<IRolRepository, RolRepository>();
-
         services.AddScoped<IUMascotaRepositoty, MascotaRepository>();
+        services.AddScoped<IEspecialidadRepositoy, EspecialidadRepository>();
 
         // Services
         services.AddScoped<IAuthService, AuthService>();
