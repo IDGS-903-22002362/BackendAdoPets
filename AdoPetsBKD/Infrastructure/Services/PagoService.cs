@@ -10,12 +10,17 @@ namespace AdoPetsBKD.Infrastructure.Services;
 public class PagoService : IPagoService
 {
     private readonly AdoPetsDbContext _context;
-    // TODO: Inyectar cliente de PayPal cuando se configure
-    // private readonly IPayPalClient _paypalClient;
+    private readonly IPayPalClient _paypalClient;
+    private readonly ILogger<PagoService> _logger;
 
-    public PagoService(AdoPetsDbContext context)
+    public PagoService(
+        AdoPetsDbContext context, 
+        IPayPalClient paypalClient,
+        ILogger<PagoService> logger)
     {
         _context = context;
+        _paypalClient = paypalClient;
+        _logger = logger;
     }
 
     public async Task<PagoDto> CreatePagoAsync(CreatePagoDto dto, Guid createdBy)
@@ -84,72 +89,50 @@ public class PagoService : IPagoService
             pago.MontoRestante = pago.MontoTotal.Value - pago.Monto;
         }
 
-        // TODO: Integrar con PayPal API
-        // Por ahora simulamos la creación de la orden
-        var orderId = $"PAYPAL-ORDER-{Guid.NewGuid()}";
-        pago.PayPalOrderId = orderId;
-
-        _context.Pagos.Add(pago);
-        await _context.SaveChangesAsync();
-
-        // Si hay solicitud de cita, vincular el pago
-        if (dto.SolicitudCitaId.HasValue)
+        try
         {
-            var solicitud = await _context.SolicitudesCitasDigitales.FindAsync(dto.SolicitudCitaId.Value);
-            if (solicitud != null)
+            // Crear orden en PayPal usando el SDK moderno
+            var order = await _paypalClient.CreateOrderAsync(
+                dto.Monto,
+                "MXN",
+                dto.Concepto,
+                dto.ReturnUrl,
+                dto.CancelUrl
+            );
+
+            pago.PayPalOrderId = order.Id;
+
+            _context.Pagos.Add(pago);
+            await _context.SaveChangesAsync();
+
+            // Si hay solicitud de cita, vincular el pago
+            if (dto.SolicitudCitaId.HasValue)
             {
-                solicitud.MarcarPagoRecibido(pago.Id);
-                await _context.SaveChangesAsync();
-            }
-        }
-
-        return new PayPalOrderResponseDto
-        {
-            OrderId = orderId,
-            ApprovalUrl = $"https://www.paypal.com/checkoutnow?token={orderId}",
-            Status = "CREATED"
-        };
-
-        /* TODO: Implementación real con PayPal SDK
-        var request = new OrdersCreateRequest();
-        request.Prefer("return=representation");
-        request.RequestBody(new OrderRequest()
-        {
-            CheckoutPaymentIntent = "CAPTURE",
-            PurchaseUnits = new List<PurchaseUnitRequest>()
-            {
-                new PurchaseUnitRequest()
+                var solicitud = await _context.SolicitudesCitasDigitales.FindAsync(dto.SolicitudCitaId.Value);
+                if (solicitud != null)
                 {
-                    AmountWithBreakdown = new AmountWithBreakdown()
-                    {
-                        CurrencyCode = "MXN",
-                        Value = dto.Monto.ToString("F2")
-                    },
-                    Description = dto.Concepto
+                    solicitud.MarcarPagoRecibido(pago.Id);
+                    await _context.SaveChangesAsync();
                 }
-            },
-            ApplicationContext = new ApplicationContext()
-            {
-                ReturnUrl = dto.ReturnUrl,
-                CancelUrl = dto.CancelUrl
             }
-        });
 
-        var response = await _paypalClient.Execute(request);
-        var result = response.Result<Order>();
-        
-        pago.PayPalOrderId = result.Id;
-        await _context.SaveChangesAsync();
+            // Obtener el approval URL
+            var approvalUrl = order.Links?.FirstOrDefault(l => l.Rel == "approve")?.Href ?? string.Empty;
 
-        var approvalUrl = result.Links.FirstOrDefault(l => l.Rel == "approve")?.Href;
+            _logger.LogInformation("Orden de PayPal creada exitosamente: {OrderId} para pago {PagoId}", order.Id, pago.Id);
 
-        return new PayPalOrderResponseDto
+            return new PayPalOrderResponseDto
+            {
+                OrderId = order.Id,
+                ApprovalUrl = approvalUrl,
+                Status = order.Status
+            };
+        }
+        catch (Exception ex)
         {
-            OrderId = result.Id,
-            ApprovalUrl = approvalUrl ?? string.Empty,
-            Status = result.Status
-        };
-        */
+            _logger.LogError(ex, "Error al crear orden de PayPal para pago {PagoId}", pago.Id);
+            throw new Exception($"Error al crear orden de PayPal: {ex.Message}", ex);
+        }
     }
 
     public async Task<PagoDto> CapturePayPalPaymentAsync(string orderId)
@@ -158,33 +141,45 @@ public class PagoService : IPagoService
             .FirstOrDefaultAsync(p => p.PayPalOrderId == orderId)
             ?? throw new Exception("Pago no encontrado");
 
-        // TODO: Implementar captura real con PayPal SDK
-        var captureId = $"CAPTURE-{Guid.NewGuid()}";
-        pago.MarcarComoPagado(captureId, "cliente@example.com", "Cliente Test");
+        try
+        {
+            // Capturar la orden usando el SDK moderno
+            var order = await _paypalClient.CaptureOrderAsync(orderId);
 
-        await _context.SaveChangesAsync();
+            // Verificar que el pago fue exitoso
+            if (order.Status?.ToUpper() == "COMPLETED")
+            {
+                // Obtener información del capture
+                var capture = order.PurchaseUnits?.FirstOrDefault()?.Payments?.Captures?.FirstOrDefault();
+                var payer = order.Payer;
 
-        return await GetPagoByIdAsync(pago.Id) ?? throw new Exception("Error al capturar pago");
+                pago.MarcarComoPagado(
+                    capture?.Id ?? orderId,
+                    payer?.Email,
+                    payer?.Name?.GivenName + " " + payer?.Name?.Surname
+                );
 
-        /* TODO: Implementación real con PayPal SDK
-        var request = new OrdersCaptureRequest(orderId);
-        request.RequestBody(new OrderActionRequest());
-        
-        var response = await _paypalClient.Execute(request);
-        var result = response.Result<Order>();
-        
-        var capture = result.PurchaseUnits[0].Payments.Captures[0];
-        
-        pago.MarcarComoPagado(
-            capture.Id,
-            result.Payer?.Email,
-            result.Payer?.Name?.GivenName + " " + result.Payer?.Name?.Surname
-        );
+                await _context.SaveChangesAsync();
 
-        await _context.SaveChangesAsync();
+                _logger.LogInformation("Pago de PayPal capturado exitosamente: {OrderId}", orderId);
+            }
+            else
+            {
+                throw new Exception($"El pago no fue completado. Estado: {order.Status}");
+            }
 
-        return await GetPagoByIdAsync(pago.Id) ?? throw new Exception("Error al capturar pago");
-        */
+            return await GetPagoByIdAsync(pago.Id) ?? throw new Exception("Error al capturar pago");
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al capturar pago de PayPal {OrderId}", orderId);
+            
+            // Marcar el pago como fallido
+            pago.Estado = EstadoPago.Fallido;
+            await _context.SaveChangesAsync();
+            
+            throw new Exception($"Error al capturar pago de PayPal: {ex.Message}", ex);
+        }
     }
 
     public async Task<PagoDto?> GetPagoByIdAsync(Guid id)
@@ -324,6 +319,7 @@ public class PagoService : IPagoService
             // Procesar según el tipo de evento
             switch (webhook.EventType)
             {
+                case "CHECKOUT.ORDER.COMPLETED":
                 case "PAYMENT.CAPTURE.COMPLETED":
                     await HandlePaymentCaptureCompleted(webhook);
                     break;
@@ -345,20 +341,90 @@ public class PagoService : IPagoService
 
     private async Task HandlePaymentCaptureCompleted(PayPalWebhookDto webhook)
     {
-        // TODO: Extraer información del resource y actualizar el pago
-        // var resource = JsonSerializer.Deserialize<PayPalCapture>(webhook.Resource.ToString());
-        // var pago = await _context.Pagos.FirstOrDefaultAsync(p => p.PayPalOrderId == resource.OrderId);
-        // if (pago != null)
-        // {
-        //     pago.MarcarComoPagado(resource.Id, resource.PayerEmail, resource.PayerName);
-        //     await _context.SaveChangesAsync();
-        // }
-        await Task.CompletedTask;
+        try
+        {
+            // Parsear el resource del webhook
+            var resourceJson = JsonSerializer.Serialize(webhook.Resource);
+            var resource = JsonSerializer.Deserialize<Dictionary<string, object>>(resourceJson);
+
+            if (resource != null)
+            {
+                // Intentar obtener el orderId de diferentes formas según el tipo de evento
+                string? orderId = null;
+                
+                if (resource.TryGetValue("id", out var idObj))
+                {
+                    orderId = idObj?.ToString();
+                }
+                
+                if (string.IsNullOrEmpty(orderId) && resource.TryGetValue("supplementary_data", out var suppData))
+                {
+                    var suppJson = JsonSerializer.Serialize(suppData);
+                    var suppDict = JsonSerializer.Deserialize<Dictionary<string, object>>(suppJson);
+                    if (suppDict?.TryGetValue("related_ids", out var relatedIds) == true)
+                    {
+                        var relatedJson = JsonSerializer.Serialize(relatedIds);
+                        var relatedDict = JsonSerializer.Deserialize<Dictionary<string, object>>(relatedJson);
+                        if (relatedDict?.TryGetValue("order_id", out var orderIdObj) == true)
+                        {
+                            orderId = orderIdObj?.ToString();
+                        }
+                    }
+                }
+                
+                if (!string.IsNullOrEmpty(orderId))
+                {
+                    var pago = await _context.Pagos.FirstOrDefaultAsync(p => p.PayPalOrderId == orderId);
+                    
+                    if (pago != null && pago.Estado == EstadoPago.Pendiente)
+                    {
+                        var captureId = resource.TryGetValue("id", out var capIdObj) ? capIdObj?.ToString() : null;
+                        var payerEmail = resource.TryGetValue("email_address", out var emailObj) ? emailObj?.ToString() : null;
+                        
+                        pago.MarcarComoPagado(captureId ?? orderId, payerEmail, null);
+                        await _context.SaveChangesAsync();
+                        
+                        _logger.LogInformation("Webhook procesado: Pago {PagoId} marcado como completado", pago.Id);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al procesar webhook de pago completado");
+            throw;
+        }
     }
 
     private async Task HandlePaymentCaptureDenied(PayPalWebhookDto webhook)
     {
-        // TODO: Manejar pago denegado
-        await Task.CompletedTask;
+        try
+        {
+            var resourceJson = JsonSerializer.Serialize(webhook.Resource);
+            var resource = JsonSerializer.Deserialize<Dictionary<string, object>>(resourceJson);
+
+            if (resource != null && resource.TryGetValue("id", out var orderIdObj))
+            {
+                var orderId = orderIdObj?.ToString();
+                
+                if (!string.IsNullOrEmpty(orderId))
+                {
+                    var pago = await _context.Pagos.FirstOrDefaultAsync(p => p.PayPalOrderId == orderId);
+                    
+                    if (pago != null)
+                    {
+                        pago.Estado = EstadoPago.Fallido;
+                        await _context.SaveChangesAsync();
+                        
+                        _logger.LogWarning("Webhook procesado: Pago {PagoId} marcado como fallido", pago.Id);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al procesar webhook de pago denegado");
+            throw;
+        }
     }
 }

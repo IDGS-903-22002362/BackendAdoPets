@@ -38,6 +38,14 @@ public class MascotaConfiguration : IEntityTypeConfiguration<Mascota>
         builder.Property(m => m.Notas)
             .HasMaxLength(2000);
 
+        // Nuevo: Configuración para Tipo y PropietarioId
+        builder.Property(m => m.Tipo)
+            .IsRequired()
+            .HasDefaultValue(TipoMascota.DelRefugio);
+
+        builder.Property(m => m.PropietarioId)
+            .IsRequired(false);
+
         // Índices
         builder.HasIndex(m => m.Estatus)
             .HasDatabaseName("IX_Mascota_Estatus");
@@ -47,6 +55,13 @@ public class MascotaConfiguration : IEntityTypeConfiguration<Mascota>
 
         builder.HasIndex(m => m.DeletedAt)
             .HasDatabaseName("IX_Mascota_DeletedAt");
+
+        // Nuevo: Índices para búsquedas por tipo y propietario
+        builder.HasIndex(m => m.Tipo)
+            .HasDatabaseName("IX_Mascota_Tipo");
+
+        builder.HasIndex(m => new { m.PropietarioId, m.Tipo })
+            .HasDatabaseName("IX_Mascota_PropietarioId_Tipo");
 
         // Relaciones
         builder.HasMany(m => m.Fotos)
@@ -59,8 +74,13 @@ public class MascotaConfiguration : IEntityTypeConfiguration<Mascota>
             .HasForeignKey(s => s.MascotaId)
             .OnDelete(DeleteBehavior.Restrict);
 
-        // Ignorar propiedades computadas
+        // Nuevo: Relación con Usuario propietario
+        builder.HasOne(m => m.Propietario)
+            .WithMany()
+            .HasForeignKey(m => m.PropietarioId)
+            .OnDelete(DeleteBehavior.Restrict);
+
+        // Ignorar propiedades calculadas
         builder.Ignore(m => m.EdadEnMeses);
-        builder.Ignore(m => m.IsDeleted);
     }
 }

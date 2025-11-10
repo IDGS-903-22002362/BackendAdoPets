@@ -3,7 +3,7 @@ using AdoPetsBKD.Domain.Common;
 namespace AdoPetsBKD.Domain.Entities.Mascotas;
 
 /// <summary>
-/// Representa una mascota del refugio
+/// Representa una mascota del refugio o de un usuario
 /// </summary>
 public class Mascota : SoftDeletableEntity
 {
@@ -18,6 +18,13 @@ public class Mascota : SoftDeletableEntity
     public string? RequisitoAdopcion { get; set; }
     public string? Origen { get; set; }
     public string? Notas { get; set; }
+
+    // Nuevo: Para distinguir mascotas del refugio vs mascotas de usuarios
+    public TipoMascota Tipo { get; set; } = TipoMascota.DelRefugio;
+    
+    // Nuevo: Usuario propietario (solo para mascotas de tipo DeUsuario)
+    public Guid? PropietarioId { get; set; }
+    public Security.Usuario? Propietario { get; set; }
 
     // Navigation properties
     public ICollection<MascotaFoto> Fotos { get; set; } = new List<MascotaFoto>();
@@ -35,7 +42,7 @@ public class Mascota : SoftDeletableEntity
 
     public bool EstaDisponibleParaAdopcion()
     {
-        return Estatus == EstatusMascota.Disponible && !IsDeleted;
+        return Tipo == TipoMascota.DelRefugio && Estatus == EstatusMascota.Disponible && !IsDeleted;
     }
 
     public void CambiarEstatus(EstatusMascota nuevoEstatus, Guid usuarioId)
@@ -43,6 +50,11 @@ public class Mascota : SoftDeletableEntity
         Estatus = nuevoEstatus;
         UpdatedBy = usuarioId;
         UpdatedAt = DateTime.UtcNow;
+    }
+    
+    public bool PerteneceAUsuario(Guid usuarioId)
+    {
+        return Tipo == TipoMascota.DeUsuario && PropietarioId == usuarioId;
     }
 }
 
@@ -60,4 +72,10 @@ public enum EstatusMascota
     Adoptada = 3,
     NoAdoptable = 4,
     EnTratamiento = 5
+}
+
+public enum TipoMascota
+{
+    DelRefugio = 1,      // Mascotas del refugio (adopción)
+    DeUsuario = 2        // Mascotas de usuarios (citas veterinarias)
 }
