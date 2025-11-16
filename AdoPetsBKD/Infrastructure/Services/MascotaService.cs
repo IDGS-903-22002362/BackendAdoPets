@@ -640,7 +640,16 @@ namespace AdoPetsBKD.Infrastructure.Services
                 FechaSolicitud = s.FechaSolicitud,
                 FechaRevision = s.FechaRevision,
                 FechaAprobacion = s.FechaAprobacion,
-                MotivoRechazo = s.MotivoRechazo
+                MotivoRechazo = s.MotivoRechazo,
+                MascotaFotos = s.Mascota?.Fotos?
+            .Select(f => new AddMascotaFotoDto
+            {
+                StorageKey = f.StorageKey,
+                MimeType = f.MimeType,
+                Orden = f.Orden,
+                EsPrincipal = f.EsPrincipal,
+            })
+            .ToList() ?? new List<AddMascotaFotoDto>()
             }).ToList();
         }
         public async Task<AdopcionLogDto> AddAdopcionLogAsync(AdopcionLogDto dto)

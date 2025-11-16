@@ -147,6 +147,8 @@ namespace AdoPetsBKD.Infrastructure.Repositories;
         return await _context.SolicitudesAdopcion
             .Include(s => s.Usuario)
             .Include(s => s.Mascota)
+            .ThenInclude(m => m.Fotos.OrderBy(f => f.Orden))
+
             .Include(s => s.Logs)
             .Where(s => s.UsuarioId == usuarioId)
             .ToListAsync();
