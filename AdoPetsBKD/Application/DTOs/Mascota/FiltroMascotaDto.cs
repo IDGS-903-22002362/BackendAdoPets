@@ -4,6 +4,7 @@ namespace AdoPetsBKD.Application.DTOs.Mascota
 {
     public class FiltroMascotaDto
     {
+        public string? Nombre { get; set; }
         public string? Especie { get; set; }
         public string? Raza { get; set; }
         public SexoMascota? Sexo { get; set; }
