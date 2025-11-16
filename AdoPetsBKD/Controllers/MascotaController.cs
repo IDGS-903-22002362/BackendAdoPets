@@ -119,7 +119,7 @@ namespace AdoPetsBKD.Controllers
                 var mascotaActualizada = await _mascotaService.UpdateAsync(id, dto, updatedBy);
                 if (mascotaActualizada == null)
                     return NotFound();
-                return Ok(new {message = "Mascota eliminada correctamente" });
+                return Ok(new {message = "Mascota actualizada correctamente" });
             }
             catch (Exception ex)
             {

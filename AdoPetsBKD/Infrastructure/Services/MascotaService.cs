@@ -78,6 +78,9 @@ namespace AdoPetsBKD.Infrastructure.Services
             // Aplicar filtros si los hay
             if (dto != null)
             {
+                if (!string.IsNullOrEmpty(dto.Nombre)) 
+                    mascotas = mascotas.Where(m => m.Nombre.ToLower() == dto.Nombre.ToLower());
+
                 if (!string.IsNullOrEmpty(dto.Especie))
                     mascotas = mascotas.Where(m => m.Especie.ToLower() == dto.Especie.ToLower());
 
