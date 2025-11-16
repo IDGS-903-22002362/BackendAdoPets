@@ -8,7 +8,7 @@ using System;
 
 namespace AdoPetsBKD.Controllers
 {
-    [Route("api/[controller]")]
+    [Route("api/v1/[controller]")]
     [ApiController]
     public class MascotaController : ControllerBase
     {
@@ -65,7 +65,8 @@ namespace AdoPetsBKD.Controllers
 
                 var mascotaCreada = await _mascotaService.CreateAsync(dto, createdBy);
 
-                return CreatedAtAction(nameof(GetById), new { id = mascotaCreada.Id }, mascotaCreada);
+                return Ok(new { message = "Mascota creada correctamente", id = mascotaCreada.Id });
+
             }
             catch (Exception ex)
             {
