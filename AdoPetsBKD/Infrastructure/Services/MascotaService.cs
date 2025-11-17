@@ -41,6 +41,7 @@ namespace AdoPetsBKD.Infrastructure.Services
                 Notas = mascota.Notas,
                 Fotos = mascota.Fotos?.Select(f => new AddMascotaFotoDto
                 {
+                    Id = f.Id,
                     StorageKey = f.StorageKey,
                     MimeType = f.MimeType,
                     Orden = f.Orden,
@@ -336,6 +337,17 @@ namespace AdoPetsBKD.Infrastructure.Services
         // Metodos para la solicitud de adopcion
         public async Task<string> CrearSolicitudAdopcionAsync(CreateSolicitudeAdopcionDto dto)
         {
+            // 1️⃣ Obtener mascota
+            var mascota = await _mascotaRepository.GetByIdAsync(dto.MascotaId);
+
+            if (mascota == null)
+                throw new Exception("La mascota no existe.");
+
+            // 2️⃣ Validar que esté disponible
+            if (!mascota.EstaDisponibleParaAdopcion())
+                throw new Exception("La mascota no está disponible para adopción.");
+
+            // 3️⃣ Crear solicitud
             var solicitud = new SolicitudAdopcion
             {
                 UsuarioId = dto.UsuarioId,
@@ -352,13 +364,31 @@ namespace AdoPetsBKD.Infrastructure.Services
                 CreatedBy = dto.UsuarioId
             };
 
-
-
             await _mascotaRepository.CreateSolicitudAdopcionAsync(solicitud);
             await _mascotaRepository.SaveChangesAsync();
 
             return $"Solicitud de adopción creada con éxito. ID: {solicitud.Id}";
         }
+
+
+        private string CalcularEdad(DateTime fechaNacimiento)
+        {
+            var hoy = DateTime.Today;
+            int años = hoy.Year - fechaNacimiento.Year;
+
+            if (fechaNacimiento.Date > hoy.AddYears(-años))
+                años--;
+
+            if (años < 1)
+            {
+                int meses = ((hoy.Year - fechaNacimiento.Year) * 12) + hoy.Month - fechaNacimiento.Month;
+                if (fechaNacimiento.Day > hoy.Day) meses--;
+                return $"{meses} meses";
+            }
+
+            return $"{años} años";
+        }
+
 
         public async Task<IEnumerable<SolicitudeAdopcionDetailDto>> GetAllSolicitudesAdopcionAsync()
         {
@@ -368,9 +398,23 @@ namespace AdoPetsBKD.Infrastructure.Services
             {
                 Id = s.Id,
                 UsuarioId = s.UsuarioId,
-                UsuarioNombre = s.Usuario?.Nombre ?? "N/A", 
+                UsuarioNombre = s.Usuario?.Nombre ?? "N/A",
+                Email = s.Usuario?.Email ?? "N/A",
+                Telefono = s.Usuario?.Telefono ??  "N/A",
+
+
                 MascotaId = s.MascotaId,
-                MascotaNombre = s.Mascota?.Nombre ?? "N/A", 
+                MascotaNombre = s.Mascota?.Nombre ?? "N/A",
+
+                Especie = s.Mascota?.Especie ?? "N/A",
+                Raza = s.Mascota?.Raza ?? "N/A",
+                Sexo = s.Mascota?.Sexo ?? 0,
+
+                FechaNacimiento = s.Mascota?.FechaNacimiento ?? DateTime.MinValue,
+                Edad = s.Mascota?.FechaNacimiento != null
+                    ? CalcularEdad(s.Mascota.FechaNacimiento.Value)
+                    : "N/A",
+
                 Vivienda = s.Vivienda,
                 NumNinios = s.NumNinios,
                 OtrasMascotas = s.OtrasMascotas,
@@ -383,6 +427,7 @@ namespace AdoPetsBKD.Infrastructure.Services
                 FechaRevision = s.FechaRevision,
                 FechaAprobacion = s.FechaAprobacion,
                 MotivoRechazo = s.MotivoRechazo,
+
                 MascotaFotos = s.Mascota?.Fotos?.Select(f => new AddMascotaFotoDto
                 {
                     StorageKey = f.StorageKey,
@@ -392,6 +437,7 @@ namespace AdoPetsBKD.Infrastructure.Services
                 }).ToList() ?? new List<AddMascotaFotoDto>()
             }).ToList();
         }
+
         public async Task<SolicitudeAdopcionDetailDto?> GetSolicitudAdopcionByIdAsync(Guid solicitudId)
         {
             var solicitud = await _mascotaRepository.GetSolicitudByIdAsync(solicitudId);
@@ -451,7 +497,15 @@ namespace AdoPetsBKD.Infrastructure.Services
             solicitud.RevisadoPor = dto.RevisadoPor;
             solicitud.FechaRevision = DateTime.UtcNow;
 
-           
+            var mascota = await _mascotaRepository.GetByIdAsync(solicitud.MascotaId);
+            if (mascota != null)
+            {
+                mascota.Estatus = EstatusMascota.Reservada;
+                mascota.UpdatedAt = DateTime.UtcNow;
+
+                await _mascotaRepository.UpdateAsync(mascota);
+            }
+
 
             try
             {
@@ -500,7 +554,14 @@ namespace AdoPetsBKD.Infrastructure.Services
             solicitud.Estado = dto.Estado;
             solicitud.FechaAprobacion = DateTime.UtcNow;
 
+            var mascota = await _mascotaRepository.GetByIdAsync(solicitud.MascotaId);
+            if (mascota != null)
+            {
+                mascota.Estatus = EstatusMascota.Adoptada;
+                mascota.UpdatedAt = DateTime.UtcNow;
 
+                await _mascotaRepository.UpdateAsync(mascota);
+            }
 
             try
             {
@@ -548,7 +609,14 @@ namespace AdoPetsBKD.Infrastructure.Services
             solicitud.FechaAprobacion = DateTime.UtcNow;
             solicitud.MotivoRechazo = dto.MotivoRechazo;
 
+            var mascota = await _mascotaRepository.GetByIdAsync(solicitud.MascotaId);
+            if (mascota != null)
+            {
+                mascota.Estatus = EstatusMascota.Disponible;
+                mascota.UpdatedAt = DateTime.UtcNow;
 
+                await _mascotaRepository.UpdateAsync(mascota);
+            }
 
             try
             {
