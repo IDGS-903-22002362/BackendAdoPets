@@ -17,6 +17,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IRolRepository, RolRepository>();
         services.AddScoped<IUMascotaRepositoty, MascotaRepository>();
         services.AddScoped<IEspecialidadRepositoy, EspecialidadRepository>();
+        services.AddScoped<IProveedorRepository, ProveedorRepository>();
 
         // Services
         services.AddScoped<IAuthService, AuthService>();
@@ -43,7 +44,10 @@ public static class ServiceCollectionExtensions
         
         // Servicio de Mascotas de Usuario
         services.AddScoped<IMascotaUsuarioService, MascotaUsuarioService>();
-        
+        // Servicio de Proveedores
+        services.AddScoped<IProveedorService, ProveedorService>();
+       
+
         return services;
     }
 }
