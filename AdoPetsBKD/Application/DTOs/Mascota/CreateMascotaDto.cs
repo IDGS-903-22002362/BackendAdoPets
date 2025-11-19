@@ -40,7 +40,7 @@ namespace AdoPetsBKD.Application.DTOs.Mascota
         public string? RequisitoAdopcion { get; set; }
 
         [Required(ErrorMessage = "El origen de la mascota es requerido")]
-        [StringLength(8)]
+        [StringLength(11)]
         public string? Origen { get; set; }
 
         [StringLength(500)]

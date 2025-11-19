@@ -4,7 +4,7 @@ using AdoPetsBKD.Domain.Entities.Security;
 namespace AdoPetsBKD.Domain.Entities.Mascotas;
 
 /// <summary>
-/// Solicitud de adopción de una mascota
+/// Solicitud de adopciï¿½n de una mascota
 /// </summary>
 public class SolicitudAdopcion : AuditableEntity
 {
@@ -16,7 +16,7 @@ public class SolicitudAdopcion : AuditableEntity
 
     public EstadoSolicitudAdopcion Estado { get; set; } = EstadoSolicitudAdopcion.Pendiente;
     
-    // Información del solicitante
+    // Informaciï¿½n del solicitante
     public TipoVivienda Vivienda { get; set; }
     public int NumNinios { get; set; }
     public bool OtrasMascotas { get; set; }

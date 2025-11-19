@@ -33,7 +33,7 @@ namespace AdoPetsBKD.Application.DTOs.Mascota
         [StringLength(500)]
         public string? RequisitoAdopcion { get; set; }
 
-        [StringLength(8)]
+        [StringLength(11)]
         public string? Origen { get; set; }
 
         [StringLength(500)]

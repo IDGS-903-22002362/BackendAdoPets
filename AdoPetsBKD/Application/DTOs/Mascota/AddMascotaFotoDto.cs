@@ -4,6 +4,7 @@
     //Dto Para subir foto asociada a la mascota
     public class AddMascotaFotoDto
     {
+        public Guid Id { get; set; }
         public string StorageKey { get; set; } 
         public string MimeType { get; set; } = string.Empty;
         public int Orden { get; set; }
