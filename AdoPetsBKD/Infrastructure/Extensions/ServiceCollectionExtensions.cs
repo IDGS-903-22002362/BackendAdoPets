@@ -60,6 +60,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IEmailService, EmailService>();
         services.AddScoped<IPushNotificationService, PushNotificationService>();
 
+        // Servicios de Horarios 
+        services.AddScoped<IHorarioService, HorarioService>(); 
+        services.AddScoped<IHorarioRepositoy, HorarioRepository>();
+
         return services;
     }
 }

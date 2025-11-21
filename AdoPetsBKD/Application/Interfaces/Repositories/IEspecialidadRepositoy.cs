@@ -6,8 +6,7 @@ namespace AdoPetsBKD.Application.Interfaces.Repositories
     {
         Task<Especialidad?> CreateAsync (Especialidad especialidad);
         Task<Especialidad> GetByIdAsync(string codigo);
-        Task<List<Especialidad>> GetAllAsync(int page = 1, int pageSize = 10);
-        Task<int> GetTotalCountAsync();
+        Task<List<Especialidad>> GetAllAsync();
         Task SaveChangesAsync();
     }
 }

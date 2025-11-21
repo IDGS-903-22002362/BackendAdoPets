@@ -12,7 +12,7 @@ namespace AdoPetsBKD.Controllers
     /// Controlador para gestionar especialidades
     /// </summary>
     [ApiController]
-    [Route("api/[controller]")]
+    [Route("api/v1/[controller]")]
     [Authorize]
     public class EspecialidadController : ControllerBase
     {
@@ -26,19 +26,19 @@ namespace AdoPetsBKD.Controllers
         }
 
         /// <summary>
-        /// Obtener todas las especialidades con paginación
+        /// Obtener todas las especialidades
         /// </summary>
         [HttpGet]
         [Authorize(Policy = "AdminOnly")]
-        [ProducesResponseType(typeof(ApiResponse<PagedResponse<EspecialidadListDto>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(ApiResponse<List<EspecialidadListDto>>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         [ProducesResponseType(StatusCodes.Status403Forbidden)]
-        public async Task<IActionResult> GetAll([FromQuery] int pageNumber = 1, [FromQuery] int pageSize = 10)
+        public async Task<IActionResult> GetAll()
         {
             try
             {
-                var result = await _especialidadService.GetAllAsync(pageNumber, pageSize);
-                return Ok(new ApiResponse<PagedResponse<EspecialidadListDto>>
+                var result = await _especialidadService.GetAllAsync();
+                return Ok(new ApiResponse<List<EspecialidadListDto>>
                 {
                     Success = true,
                     Message = "Especialidades obtenidas correctamente",
@@ -48,7 +48,7 @@ namespace AdoPetsBKD.Controllers
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error al obtener la lista de especialidades");
-                return StatusCode(StatusCodes.Status500InternalServerError, new ApiResponse<PagedResponse<EspecialidadListDto>>
+                return StatusCode(StatusCodes.Status500InternalServerError, new ApiResponse<List<EspecialidadListDto>>
                 {
                     Success = false,
                     Message = "Error al obtener la lista de especialidades: " + ex.Message
@@ -59,7 +59,6 @@ namespace AdoPetsBKD.Controllers
         /// <summary>
         /// Obtener una especialidad por su código
         /// </summary>
-        /// <param name="codigo">Código de la especialidad</param>
         [HttpGet("{codigo}")]
         [Authorize(Policy = "AdminOnly")]
         [ProducesResponseType(typeof(ApiResponse<EspecialidadDetailDto>), StatusCodes.Status200OK)]

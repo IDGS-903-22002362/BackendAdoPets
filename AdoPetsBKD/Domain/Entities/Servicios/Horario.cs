@@ -34,6 +34,29 @@ public class Horario : BaseEntity
 
         return false;
     }
+
+    public int ObtenerPrioridad()
+    {
+        return Tipo switch
+        {
+            TipoHorario.Vacaciones => 3,
+            TipoHorario.Permiso => 3,
+            TipoHorario.Guardia => 3,
+            TipoHorario.Descanso => 2,
+            TipoHorario.Turno => 1,
+            _ => 0
+        };
+    }
+
+    public bool EsRecurrente()
+    {
+        return RangoInicio.HasValue && RangoFin.HasValue;
+    }
+
+    public bool EsExcepcion()
+    {
+        return Fecha.HasValue;
+    }
 }
 
 public enum TipoHorario

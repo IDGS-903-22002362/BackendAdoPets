@@ -1,5 +1,6 @@
 using AdoPetsBKD.Application.Common;
 using AdoPetsBKD.Application.DTOs.Usuarios;
+using AdoPetsBKD.Application.DTOs.Roles;
 using AdoPetsBKD.Application.Interfaces.Repositories;
 using AdoPetsBKD.Application.Interfaces.Services;
 using AdoPetsBKD.Domain.Entities.Security;

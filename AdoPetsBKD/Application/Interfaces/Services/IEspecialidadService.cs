@@ -9,7 +9,7 @@ namespace AdoPetsBKD.Application.Interfaces.Services
     public interface IEspecialidadService
     {
   
-        Task<PagedResponse<EspecialidadListDto>> GetAllAsync(int pageNumber, int pageSize);
+        Task<List<EspecialidadListDto>> GetAllAsync();
 
         Task<EspecialidadDetailDto?> GetByIdAsync(string codigo);
 

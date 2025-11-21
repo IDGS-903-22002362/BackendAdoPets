@@ -14,14 +14,4 @@
         public DateTime? FechaContratacion { get; set; }
         public List<EspecialidadSimpleDto> Especialidades { get; set; } = new();
     }
-
-    /// <summary>
-    /// DTO simplificado para mostrar especialidad en listados
-    /// </summary>
-    public class EspecialidadSimpleDto
-    {
-        public Guid Id { get; set; }
-        public string? Codigo { get; set; }
-        public string Descripcion { get; set; } = string.Empty;
-    }
 }

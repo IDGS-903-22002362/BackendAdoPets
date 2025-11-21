@@ -123,7 +123,7 @@ namespace AdoPetsBKD.Infrastructure.Services
 
         public async Task<EmpleadoDetailDto> UpdateAsync(Guid id, EmpleadoUpdateDto dto, Guid updateBy)
         {
-            var empleado = await _empleadoRepository.GetByIdAsync(id); 
+            var empleado = await _empleadoRepository.GetByIdWithEspecialidadesAsync(id); 
 
             if (empleado == null)
             {
@@ -157,6 +157,35 @@ namespace AdoPetsBKD.Infrastructure.Services
             empleado.Usuario.ApellidoPaterno = dto.ApellidoPaterno;
             empleado.Usuario.ApellidoMaterno = dto.ApellidoMaterno;
             empleado.Usuario.Telefono = dto.TelefonoLaboral; 
+
+            // Actualizar especialidades si se proporcionan
+            if (dto.Especialidades != null)
+            {
+                // Validar que todas las especialidades existan
+                var especialidadesIds = dto.Especialidades.Select(e => e.EspecialidadId).ToList();
+                var especialidades = await _especialidadRepository.GetAllAsync();
+                var especialidadesExistentes = especialidades.Where(e => especialidadesIds.Contains(e.Id)).ToList();
+
+                if (especialidadesExistentes.Count != especialidadesIds.Count)
+                {
+                    throw new InvalidOperationException("Una o más especialidades no existen");
+                }
+
+                // Limpiar especialidades anteriores
+                empleado.Especialidades.Clear();
+
+                // Agregar nuevas especialidades
+                foreach (var especialidadDto in dto.Especialidades)
+                {
+                    empleado.Especialidades.Add(new EmpleadoEspecialidad
+                    {
+                        EmpleadoId = id,
+                        EspecialidadId = especialidadDto.EspecialidadId,
+                        Certificacion = especialidadDto.Certificacion,
+                        ObtainedAt = DateTime.UtcNow
+                    });
+                }
+            }
 
             // Guardar cambios
             await _empleadoRepository.UpdateAsync(empleado);
@@ -225,7 +254,7 @@ namespace AdoPetsBKD.Infrastructure.Services
 
             // Validar que todas las especialidades existan
             var especialidadesIds = dto.Especialidades.Select(e => e.EspecialidadId).ToList();
-            var especialidades = await _especialidadRepository.GetAllAsync(1, 100);
+            var especialidades = await _especialidadRepository.GetAllAsync();
             var especialidadesExistentes = especialidades.Where(e => especialidadesIds.Contains(e.Id)).ToList();
 
             if (especialidadesExistentes.Count != especialidadesIds.Count)
