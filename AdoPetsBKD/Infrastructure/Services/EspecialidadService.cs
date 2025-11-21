@@ -1,5 +1,4 @@
-﻿using AdoPetsBKD.Application.Common;
-using AdoPetsBKD.Application.DTOs.Especialidades;
+﻿using AdoPetsBKD.Application.DTOs.Especialidades;
 using AdoPetsBKD.Application.Interfaces.Repositories;
 using AdoPetsBKD.Application.Interfaces.Services;
 using AdoPetsBKD.Domain.Entities.Servicios;
@@ -16,26 +15,16 @@ namespace AdoPetsBKD.Infrastructure.Services
             _especialidadRepositoy = especialidadRepositoy;
         }
 
-        public async Task<PagedResponse<EspecialidadListDto>> GetAllAsync(int pageNumber, int pageSize)
+        public async Task<List<EspecialidadListDto>> GetAllAsync()
         {
-            var especialidades = await _especialidadRepositoy.GetAllAsync(pageNumber, pageSize);
-            var totalCount = await _especialidadRepositoy.GetTotalCountAsync();
+            var especialidades = await _especialidadRepositoy.GetAllAsync();
 
-            var especialidadesDto = especialidades.Select(e => new EspecialidadListDto
+            return especialidades.Select(e => new EspecialidadListDto
             {
                 Id = e.Id,
                 Codigo = e.Codigo ?? string.Empty,
                 Descripcion = e.Descripcion
             }).ToList();
-
-            return new PagedResponse<EspecialidadListDto>
-            {
-                Items = especialidadesDto,
-                PageNumber = pageNumber,
-                PageSize = pageSize,
-                TotalCount = totalCount,
-                TotalPages = (int)Math.Ceiling(totalCount / (double)pageSize)
-            };
         }
 
         public async Task<EspecialidadDetailDto?> GetByIdAsync(string codigo)

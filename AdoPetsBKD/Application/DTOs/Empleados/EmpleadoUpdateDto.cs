@@ -31,13 +31,21 @@ namespace AdoPetsBKD.Application.DTOs.Empleados
         [Required]
         [StringLength(80)]
         public string EmailLaboral { get; set; } = string.Empty;
+        
         [Phone]
         [Required]
         [StringLength(20)]
         public string TelefonoLaboral { get; set; } = string.Empty;
+        
         [Required]
         public int Tipo { get; set; }
+        
         [Required]
         public decimal Sueldo { get; set; }
+
+        /// <summary>
+        /// Lista de especialidades del empleado (opcional)
+        /// </summary>
+        public List<EspecialidadAsignacionDto>? Especialidades { get; set; }
     }
 }

@@ -1,4 +1,5 @@
 using AdoPetsBKD.Domain.Entities.Security;
+using AdoPetsBKD.Application.DTOs.Roles;
 
 namespace AdoPetsBKD.Application.DTOs.Usuarios;
 
@@ -21,11 +22,4 @@ public class UsuarioDetailDto
     public List<RolDto> Roles { get; set; } = new();
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
-}
-
-public class RolDto
-{
-    public Guid Id { get; set; }
-    public string Nombre { get; set; } = string.Empty;
-    public string? Descripcion { get; set; }
 }

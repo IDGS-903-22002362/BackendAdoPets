@@ -20,6 +20,7 @@ namespace AdoPetsBKD.Infrastructure.Repositories
             return await _context.Especialidades
                 .FirstOrDefaultAsync(e => e.Codigo == codigo);
         }
+        
         public async Task<Especialidad> CreateAsync (Especialidad especialidad)
         {
             _context.Especialidades.Add (especialidad);
@@ -27,21 +28,11 @@ namespace AdoPetsBKD.Infrastructure.Repositories
             return especialidad;
         }
 
-        public async Task<List<Especialidad>> GetAllAsync (int pageNumber = 1, int pageSize = 10)
+        public async Task<List<Especialidad>> GetAllAsync()
         {
-            var query = _context.Especialidades
-                .AsQueryable();
-
-            return await query
-                .OrderByDescending(e => e.Descripcion)
-                .Skip((pageNumber - 1) * pageSize)
-                .Take(pageSize)
+            return await _context.Especialidades
+                .OrderBy(e => e.Descripcion)
                 .ToListAsync();
-        }
-
-        public async Task<int> GetTotalCountAsync()
-        {
-            return await _context.Especialidades.CountAsync();
         }
 
         public async Task SaveChangesAsync()

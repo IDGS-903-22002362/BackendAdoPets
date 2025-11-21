@@ -5,6 +5,8 @@ using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using AdoPetsBKD.Application.Common;
 using AdoPetsBKD.Domain.Entities.Servicios;
+using AdoPetsBKD.Application.Interfaces.Repositories;
+using AdoPetsBKD.Application.DTOs.Roles;
 
 namespace AdoPetsBKD.Controllers
 {
@@ -17,11 +19,16 @@ namespace AdoPetsBKD.Controllers
     public class EmpleadosController : ControllerBase
     {
         private readonly IEmpleadoService _empleadoService;
+        private readonly IRolRepository _rolRepository;
         private readonly ILogger<EmpleadosController> _logger;
 
-        public EmpleadosController(IEmpleadoService empleadoService, ILogger<EmpleadosController> logger)
+        public EmpleadosController(
+            IEmpleadoService empleadoService, 
+            IRolRepository rolRepository,
+            ILogger<EmpleadosController> logger)
         {
             _empleadoService = empleadoService;
+            _rolRepository = rolRepository;
             _logger = logger;
         }
 
@@ -54,6 +61,63 @@ namespace AdoPetsBKD.Controllers
                     Message = "Error al obtener la lista de empleados: " + ex.Message
                 });
             }
+        }
+
+        /// <summary>
+        /// Obtener todos los roles disponibles para empleados
+        /// </summary>
+        [HttpGet("roles")]
+        [Authorize(Policy = "AdminOnly")]
+        [ProducesResponseType(typeof(ApiResponse<List<RolDto>>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<IActionResult> GetRoles()
+        {
+            try
+            {
+                var roles = await _rolRepository.GetAllAsync();
+                var rolesDto = roles.Select(r => new RolDto
+                {
+                    Id = r.Id,
+                    Nombre = r.Nombre,
+                    Descripcion = r.Descripcion
+                }).ToList();
+
+                return Ok(new ApiResponse<List<RolDto>>
+                {
+                    Success = true,
+                    Message = "Roles obtenidos correctamente",
+                    Data = rolesDto
+                });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener los roles");
+                return StatusCode(StatusCodes.Status500InternalServerError, new ApiResponse<List<RolDto>>
+                {
+                    Success = false,
+                    Message = "Error al obtener los roles: " + ex.Message
+                });
+            }
+        }
+
+        /// <summary>
+        /// Consultar el registro de un empleado
+        /// </summary>
+        /// <param name="id">ID del empleado</param>
+        [HttpGet("{id}")]
+        [Authorize(Policy = "AdminOnly")]
+        [ProducesResponseType(typeof(ApiResponse<EmpleadoDetailDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        public async Task<IActionResult> GetById(Guid id)
+        {
+            var empleado = await _empleadoService.GetByIdAsync(id);
+            if (empleado == null)
+                return NotFound(new ApiResponse<EmpleadoDetailDto> { Success = false, Message = "Empleado no encontrado" });
+
+            return Ok(new ApiResponse<EmpleadoDetailDto> { Success = true, Data = empleado, Message = "Empleado encontrado" });
         }
 
         /// <summary>
@@ -107,7 +171,7 @@ namespace AdoPetsBKD.Controllers
         }
 
         /// <summary>
-        /// Actualizar un empleado existente    
+        /// Actualizar un empleado existente (incluye la posibilidad de actualizar especialidades)
         /// </summary>
         [HttpPut("{id}")]
         [Authorize(Policy = "AdminOnly")]
@@ -233,25 +297,6 @@ namespace AdoPetsBKD.Controllers
                 _logger.LogError(ex, "Error al dar de baja al empleado");
                 return BadRequest(ApiResponse<object>.ErrorResponse("Error al dar de baja al empleado: " + ex.Message));
             }
-        }
-
-        /// <summary>
-        /// Consultar el registro de un empleado
-        /// </summary>
-        /// <param name="id">ID del empleado</param>
-        [HttpGet("{id}")]
-        [Authorize(Policy = "AdminOnly")]
-        [ProducesResponseType(typeof(ApiResponse<EmpleadoDetailDto>), StatusCodes.Status200OK)]
-        [ProducesResponseType(StatusCodes.Status404NotFound)]
-        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
-        [ProducesResponseType(StatusCodes.Status403Forbidden)]
-        public async Task<IActionResult> GetById(Guid id)
-        {
-            var empleado = await _empleadoService.GetByIdAsync(id);
-            if (empleado == null)
-                return NotFound(new ApiResponse<EmpleadoDetailDto> { Success = false, Message = "Empleado no encontrado" });
-
-            return Ok(new ApiResponse<EmpleadoDetailDto> { Success = true, Data = empleado, Message = "Empleado encontrado" });
         }
 
         /// <summary>
