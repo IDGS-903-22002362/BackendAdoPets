@@ -421,3 +421,4 @@ azure-pipelines.yml.user
 # Database backups
 *.bak
 *.sql
+AdoPetsBKD/firebase-adminsdk.json
