@@ -143,16 +143,22 @@ public class CitaRepository : ICitaRepository
     public async Task<List<Cita>> GetPendingRemindersAsync()
     {
         var now = DateTime.UtcNow;
-        return await _context.Citas
+        
+        // Obtener todas las citas programadas con sus recordatorios
+        var citas = await _context.Citas
             .Include(c => c.Mascota)
             .Include(c => c.Propietario)
             .Include(c => c.Veterinario)
             .Include(c => c.Recordatorios)
             .Where(c => c.Status == StatusCita.Programada)
             .Where(c => c.StartAt > now)
-            .Where(c => c.Recordatorios.Any(r => !r.WasSent))
             .OrderBy(c => c.StartAt)
             .ToListAsync();
+
+        // Filtrar en memoria las que tienen recordatorios pendientes (SentAt == null)
+        return citas
+            .Where(c => c.Recordatorios.Any(r => r.SentAt == null))
+            .ToList();
     }
 
     public async Task AddAsync(Cita cita)

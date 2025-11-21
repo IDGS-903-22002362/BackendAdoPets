@@ -13,6 +13,10 @@ public class PushNotificationService : IPushNotificationService
     private readonly IDispositivoRepository _dispositivoRepository;
     private readonly ILogger<PushNotificationService> _logger;
     private readonly bool _firebaseEnabled;
+    
+    // Variable estática para evitar múltiples inicializaciones
+    private static bool _firebaseInitialized = false;
+    private static readonly object _lock = new object();
 
     public PushNotificationService(
         IDispositivoRepository dispositivoRepository,
@@ -23,37 +27,41 @@ public class PushNotificationService : IPushNotificationService
         _logger = logger;
 
         // Inicializar Firebase Admin (solo una vez)
-        try
+        lock (_lock)
         {
-            if (FirebaseApp.DefaultInstance == null)
+            if (!_firebaseInitialized)
             {
-                var credentialsPath = configuration["Firebase:CredentialsPath"] ?? "firebase-adminsdk.json";
-                
-                if (File.Exists(credentialsPath))
+                try
                 {
-                    FirebaseApp.Create(new AppOptions
-                    {
-                        Credential = GoogleCredential.FromFile(credentialsPath)
-                    });
+                    var credentialsPath = configuration["Firebase:CredentialsPath"] ?? "firebase-adminsdk.json";
                     
-                    _firebaseEnabled = true;
-                    _logger.LogInformation("? Firebase Admin SDK inicializado correctamente");
+                    if (File.Exists(credentialsPath))
+                    {
+                        FirebaseApp.Create(new AppOptions
+                        {
+                            Credential = GoogleCredential.FromFile(credentialsPath)
+                        });
+                        
+                        _firebaseEnabled = true;
+                        _firebaseInitialized = true;
+                        _logger.LogInformation("? Firebase Admin SDK inicializado correctamente");
+                    }
+                    else
+                    {
+                        _firebaseEnabled = false;
+                        _logger.LogWarning("?? Archivo de credenciales Firebase no encontrado en: {Path}. Push notifications deshabilitadas.", credentialsPath);
+                    }
                 }
-                else
+                catch (Exception ex)
                 {
                     _firebaseEnabled = false;
-                    _logger.LogWarning("?? Archivo de credenciales Firebase no encontrado en: {Path}. Push notifications deshabilitadas.", credentialsPath);
+                    _logger.LogError(ex, "? Error al inicializar Firebase Admin SDK. Push notifications deshabilitadas.");
                 }
             }
             else
             {
                 _firebaseEnabled = true;
             }
-        }
-        catch (Exception ex)
-        {
-            _firebaseEnabled = false;
-            _logger.LogError(ex, "? Error al inicializar Firebase Admin SDK. Push notifications deshabilitadas.");
         }
     }
 
