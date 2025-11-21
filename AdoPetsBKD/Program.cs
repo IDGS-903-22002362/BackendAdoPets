@@ -9,9 +9,14 @@ using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi.Models;
 using System.Text;
 
+// Hangfire y el servicio de recordatorios
+using Hangfire;
+using Hangfire.SqlServer;
+using AdoPetsBKD.Application.Interfaces.Services;
+
 var builder = WebApplication.CreateBuilder(args);
 
-// Configuraci�n de Settings
+// Configuración de Settings
 var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>()
     ?? throw new InvalidOperationException("JWT settings not configured");
 var corsSettings = builder.Configuration.GetSection(CorsSettings.SectionName).Get<CorsSettings>()
@@ -32,8 +37,8 @@ builder.Services.AddDbContext<AdoPetsDbContext>(options =>
         sqlOptions =>
         {
             sqlOptions.EnableRetryOnFailure(
-                maxRetryCount: 3, 
-                maxRetryDelay: TimeSpan.FromSeconds(5), 
+                maxRetryCount: 3,
+                maxRetryDelay: TimeSpan.FromSeconds(5),
                 errorNumbersToAdd: null);
             sqlOptions.MigrationsAssembly(typeof(AdoPetsDbContext).Assembly.FullName);
         });
@@ -45,7 +50,28 @@ builder.Services.AddDbContext<AdoPetsDbContext>(options =>
     }
 });
 
+// Configurar Hangfire 
+builder.Services.AddHangfire(config => config
+    .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
+    .UseSimpleAssemblyNameTypeSerializer()
+    .UseRecommendedSerializerSettings()
+    .UseSqlServerStorage(
+        builder.Configuration.GetConnectionString("AdoPetsDb"),
+        new SqlServerStorageOptions
+        {
+            CommandBatchMaxTimeout = TimeSpan.FromMinutes(5),
+            SlidingInvisibilityTimeout = TimeSpan.FromMinutes(5),
+            QueuePollInterval = TimeSpan.Zero,
+            UseRecommendedIsolationLevel = true,
+            DisableGlobalLocks = true,
+            SchemaName = "Hangfire"
+        }));
 
+builder.Services.AddHangfireServer(options =>
+{
+    options.SchedulePollingInterval = TimeSpan.FromMinutes(1);
+    options.ServerName = $"AdoPets-{Environment.MachineName}";
+});
 
 // Application Services (Repositories & Services)
 builder.Services.AddApplicationServices();
@@ -97,7 +123,7 @@ builder.Services.AddSwaggerGen(options =>
     {
         Title = "AdoPets API",
         Version = "v1",
-        Description = "API para la gesti�n integral de refugio de animales"
+        Description = "API para la gestión integral de refugio de animales"
     });
 
     options.AddSecurityDefinition("Bearer", new OpenApiSecurityScheme
@@ -140,6 +166,14 @@ if (app.Environment.IsDevelopment())
     {
         c.RouteTemplate = "v1/{documentName}/swagger.json";
     });
+
+    // Dashboard de Hangfire (después de UseSwagger)
+    app.UseHangfireDashboard("/hangfire", new DashboardOptions
+    {
+        DashboardTitle = "AdoPets - Jobs Programados",
+        DisplayStorageConnectionString = false
+    });
+
     app.UseSwaggerUI(c =>
     {
         c.SwaggerEndpoint("/v1/v1/swagger.json", "AdoPets API v1");
@@ -149,7 +183,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseCors(corsSettings.PolicyName);
 
-// Solo redirigir a HTTPS en producci�n para evitar problemas con CORS
+// Solo redirigir a HTTPS en producción para evitar problemas con CORS
 if (!app.Environment.IsDevelopment())
 {
     app.UseHttpsRedirection();
@@ -159,28 +193,41 @@ app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
-// Inicializaci�n de BD en desarrollo
+// Inicialización de BD en desarrollo
 if (app.Environment.IsDevelopment())
 {
     using var scope = app.Services.CreateScope();
     var dbContext = scope.ServiceProvider.GetRequiredService<AdoPetsDbContext>();
-    
+
     try
     {
         if (await dbContext.Database.CanConnectAsync())
         {
-            app.Logger.LogInformation("? Conexi�n a BD exitosa");
+            app.Logger.LogInformation("✅ Conexión a BD exitosa");
             await dbContext.Database.MigrateAsync();
-            
-            // Inicializar datos b�sicos
+
+            // Inicializar datos básicos
             await DatabaseSeeder.SeedAllAsync(dbContext);
-            app.Logger.LogInformation("? Datos iniciales cargados");
+            app.Logger.LogInformation("✅ Datos iniciales cargados");
         }
     }
     catch (Exception ex)
     {
-        app.Logger.LogError(ex, "? Error al inicializar BD");
+        app.Logger.LogError(ex, "❌ Error al inicializar BD");
     }
 }
+
+// Programar job recurrente de recordatorios (antes de app.Run)
+RecurringJob.AddOrUpdate<IRecordatorioService>(
+    "enviar-recordatorios-citas",
+    service => service.EnviarRecordatoriosPendientesAsync(),
+    "*/15 * * * *", // Cada 15 minutos
+    new RecurringJobOptions
+    {
+        TimeZone = TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time (Mexico)")
+    });
+
+app.Logger.LogInformation("Job de recordatorios programado: cada 15 minutos");
+app.Logger.LogInformation("Dashboard de Hangfire disponible en: /hangfire");
 
 app.Run();

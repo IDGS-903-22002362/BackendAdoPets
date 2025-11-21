@@ -7,7 +7,7 @@ using AdoPetsBKD.Application.Common;
 namespace AdoPetsBKD.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/v1/[controller]")]
 public class PagosController : ControllerBase
 {
     private readonly IPagoService _pagoService;
