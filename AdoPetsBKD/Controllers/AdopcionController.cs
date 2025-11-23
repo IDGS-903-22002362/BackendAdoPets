@@ -136,8 +136,29 @@ namespace AdoPetsBKD.Controllers
         public async Task<IActionResult> GetSolicitudbyUsuarioId(Guid usuarioId)
         {
             var solicitud = await _mascotaService.GetSolicitudbyUsuarioIdAsync(usuarioId);
-            if (solicitud == null)
-                return NotFound(new { message = "Solicitud no encontrada para el usuario especificado" });
+            var baseUrl = $"{Request.Scheme}://{Request.Host}";
+
+            foreach (var solicitudes in solicitud)
+            {
+                if (solicitudes.MascotaFotos != null)
+                {
+                    foreach (var foto in solicitudes.MascotaFotos)
+                    {
+                        if (!string.IsNullOrEmpty(foto.StorageKey))
+                        {
+                            if (foto.StorageKey.StartsWith("/"))
+                            {
+                                foto.StorageKey = $"{baseUrl}{foto.StorageKey}";
+                            }
+                            else if (foto.StorageKey.StartsWith("uploads/"))
+                            {
+                                foto.StorageKey = $"{baseUrl}/{foto.StorageKey}";
+                            }
+                        }
+                    }
+                }
+            }
+
             return Ok(solicitud);
         }
     }
