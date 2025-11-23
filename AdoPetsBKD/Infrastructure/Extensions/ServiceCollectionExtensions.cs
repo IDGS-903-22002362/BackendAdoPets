@@ -64,6 +64,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IHorarioService, HorarioService>(); 
         services.AddScoped<IHorarioRepositoy, HorarioRepository>();
 
+        // Servicios de Donaciones
+        services.AddScoped<IDonacionesService, DonacionesService>();
+
         return services;
     }
 }
