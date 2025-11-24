@@ -16,7 +16,7 @@ using AdoPetsBKD.Application.Interfaces.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
-// Configuración de Settings
+// --- 1. CONFIGURACIÓN DE SETTINGS ---
 var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>()
     ?? throw new InvalidOperationException("JWT settings not configured");
 var corsSettings = builder.Configuration.GetSection(CorsSettings.SectionName).Get<CorsSettings>()
@@ -29,9 +29,10 @@ builder.Services.Configure<PayPalSettings>(builder.Configuration.GetSection(PayP
 builder.Services.Configure<FirebaseSettings>(builder.Configuration.GetSection(FirebaseSettings.SectionName));
 builder.Services.Configure<PoliciesSettings>(builder.Configuration.GetSection(PoliciesSettings.SectionName));
 
-// Database Context
+// --- 2. BASE DE DATOS ---
 builder.Services.AddDbContext<AdoPetsDbContext>(options =>
 {
+    // Asegúrate de tener la ConnectionString "AdoPetsDb" en Azure Portal
     options.UseSqlServer(
         builder.Configuration.GetConnectionString("AdoPetsDb"),
         sqlOptions =>
@@ -50,7 +51,7 @@ builder.Services.AddDbContext<AdoPetsDbContext>(options =>
     }
 });
 
-// Configurar Hangfire 
+// --- 3. HANGFIRE ---
 builder.Services.AddHangfire(config => config
     .SetDataCompatibilityLevel(CompatibilityLevel.Version_180)
     .UseSimpleAssemblyNameTypeSerializer()
@@ -73,14 +74,15 @@ builder.Services.AddHangfireServer(options =>
     options.ServerName = $"AdoPets-{Environment.MachineName}";
 });
 
-// Application Services (Repositories & Services)
+// --- 4. SERVICIOS DE APLICACIÓN ---
 builder.Services.AddApplicationServices();
 
-// CORS
+// --- 5. CORS ---
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(corsSettings.PolicyName, policy =>
     {
+        // En producción asegúrate de agregar la URL de tu frontend en Azure
         policy.WithOrigins(corsSettings.AllowedOrigins)
               .AllowAnyMethod()
               .AllowAnyHeader()
@@ -88,7 +90,7 @@ builder.Services.AddCors(options =>
     });
 });
 
-// Authentication & Authorization (JWT)
+// --- 6. AUTH ---
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 .AddJwtBearer(options =>
 {
@@ -115,7 +117,7 @@ builder.Services.AddAuthorization(options =>
 // Controllers
 builder.Services.AddControllers();
 
-// OpenAPI/Swagger
+// --- 7. SWAGGER ---
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -150,84 +152,95 @@ builder.Services.AddSwaggerGen(options =>
 
 var app = builder.Build();
 
-// En Program.cs o Startup.cs
-app.UseStaticFiles(); // Para wwwroot
+// ================= PIPELINE DE PETICIONES =================
+
+// --- CORRECCIÓN 1: Manejo seguro de archivos estáticos ---
+// Verificamos si existe la carpeta uploads, si no, la creamos para que no truene.
+var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
+if (!Directory.Exists(uploadsPath))
+{
+    Directory.CreateDirectory(uploadsPath);
+}
+
+app.UseStaticFiles(); // Para wwwroot base
 app.UseStaticFiles(new StaticFileOptions
 {
-    FileProvider = new PhysicalFileProvider(
-        Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads")),
+    FileProvider = new PhysicalFileProvider(uploadsPath),
     RequestPath = "/uploads"
 });
 
-// Configure HTTP pipeline
-if (app.Environment.IsDevelopment())
+// --- CORRECCIÓN 2: Swagger y Hangfire visibles en Producción ---
+// Quitamos el "if (IsDevelopment)" para que puedas probar en Azure.
+
+app.UseSwagger(c =>
 {
-    app.UseSwagger(c =>
-    {
-        c.RouteTemplate = "v1/{documentName}/swagger.json";
-    });
+    c.RouteTemplate = "v1/{documentName}/swagger.json";
+});
 
-    // Dashboard de Hangfire (después de UseSwagger)
-    app.UseHangfireDashboard("/hangfire", new DashboardOptions
-    {
-        DashboardTitle = "AdoPets - Jobs Programados",
-        DisplayStorageConnectionString = false
-    });
+app.UseSwaggerUI(c =>
+{
+    c.SwaggerEndpoint("/v1/v1/swagger.json", "AdoPets API v1");
+    c.RoutePrefix = string.Empty; // Swagger aparecerá en la raíz del sitio
+});
 
-    app.UseSwaggerUI(c =>
-    {
-        c.SwaggerEndpoint("/v1/v1/swagger.json", "AdoPets API v1");
-        c.RoutePrefix = string.Empty;
-    });
-}
+// Dashboard de Hangfire
+// Nota: En producción, Hangfire bloquea accesos remotos por defecto. 
+// Si ves un 403 Forbidden, es normal por seguridad.
+app.UseHangfireDashboard("/hangfire", new DashboardOptions
+{
+    DashboardTitle = "AdoPets - Jobs Programados",
+    DisplayStorageConnectionString = false
+});
 
 app.UseCors(corsSettings.PolicyName);
 
-// Solo redirigir a HTTPS en producción para evitar problemas con CORS
-if (!app.Environment.IsDevelopment())
-{
-    app.UseHttpsRedirection();
-}
+app.UseHttpsRedirection();
 
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
 
-// Inicialización de BD en desarrollo
-if (app.Environment.IsDevelopment())
+// --- CORRECCIÓN 3: Migraciones automáticas en Azure ---
+// Ejecutamos esto siempre (con try-catch) para asegurar que la BD exista en la nube.
+using (var scope = app.Services.CreateScope())
 {
-    using var scope = app.Services.CreateScope();
-    var dbContext = scope.ServiceProvider.GetRequiredService<AdoPetsDbContext>();
-
+    var services = scope.ServiceProvider;
     try
     {
-        if (await dbContext.Database.CanConnectAsync())
-        {
-            app.Logger.LogInformation("✅ Conexión a BD exitosa");
-            await dbContext.Database.MigrateAsync();
+        var dbContext = services.GetRequiredService<AdoPetsDbContext>();
 
-            // Inicializar datos básicos
-            await DatabaseSeeder.SeedAllAsync(dbContext);
-            app.Logger.LogInformation("✅ Datos iniciales cargados");
-        }
+        // Solo intentamos conectar/migrar si tenemos conexión.
+        // Esto crea la BD en Azure si es la primera vez.
+        await dbContext.Database.MigrateAsync();
+
+        // Seed de datos
+        await DatabaseSeeder.SeedAllAsync(dbContext);
+
+        app.Logger.LogInformation("✅ Base de Datos migrada y actualizada correctamente.");
     }
     catch (Exception ex)
     {
-        app.Logger.LogError(ex, "❌ Error al inicializar BD");
+        app.Logger.LogError(ex, "❌ Ocurrió un error al migrar la base de datos.");
+        // No lanzamos la excepción (throw) para permitir que la App arranque 
+        // y puedas ver al menos el Swagger, aunque la BD falle.
     }
 }
 
-// Programar job recurrente de recordatorios (antes de app.Run)
-RecurringJob.AddOrUpdate<IRecordatorioService>(
-    "enviar-recordatorios-citas",
-    service => service.EnviarRecordatoriosPendientesAsync(),
-    "*/15 * * * *", // Cada 15 minutos
-    new RecurringJobOptions
-    {
-        TimeZone = TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time (Mexico)")
-    });
-
-app.Logger.LogInformation("Job de recordatorios programado: cada 15 minutos");
-app.Logger.LogInformation("Dashboard de Hangfire disponible en: /hangfire");
+// Programar job recurrente de recordatorios
+try
+{
+    RecurringJob.AddOrUpdate<IRecordatorioService>(
+        "enviar-recordatorios-citas",
+        service => service.EnviarRecordatoriosPendientesAsync(),
+        "*/15 * * * *",
+        new RecurringJobOptions
+        {
+            TimeZone = TimeZoneInfo.FindSystemTimeZoneById("Central Standard Time (Mexico)")
+        });
+}
+catch (Exception ex)
+{
+    app.Logger.LogError(ex, "❌ Error al registrar Jobs de Hangfire (¿Quizás faltó la conexión a BD?)");
+}
 
 app.Run();

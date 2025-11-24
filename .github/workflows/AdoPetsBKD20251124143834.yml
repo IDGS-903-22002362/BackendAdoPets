@@ -46,9 +46,9 @@ jobs:
     - name: Azure Login
       uses: azure/login@v2
       with:
-        client-id: ${{ vars.AdoPetsBKD20251124143834_CLIENT_ID_45D2 }}
-        tenant-id: ${{ vars.AdoPetsBKD20251124143834_TENANT_ID_45D2 }}
-        subscription-id: ${{ vars.AdoPetsBKD20251124143834_SUBSCRIPTION_ID_45D2 }}
+        client-id: ${{ vars.AdoPetsBKD20251124143834_CLIENT_ID_2E25 }}
+        tenant-id: ${{ vars.AdoPetsBKD20251124143834_TENANT_ID_2E25 }}
+        subscription-id: ${{ vars.AdoPetsBKD20251124143834_SUBSCRIPTION_ID_2E25 }}
     - name: Deploy to Azure WebApp
       uses: azure/webapps-deploy@v2
       with:
