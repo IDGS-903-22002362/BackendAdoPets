@@ -24,7 +24,7 @@ La cadena de conexión está configurada en `appsettings.json` y `appsettings.Deve
 ```json
 {
   "ConnectionStrings": {
-    "AdoPetsDb": "Server=localhost;Database=AdoPetsDb_Dev;User Id=sa;Password=Uucy291o;TrustServerCertificate=True;MultipleActiveResultSets=true"
+    "AdoPetsDb": "Server=localhost;Database=AdoPetsDb_Dev;User Id=sa;Password=paulina;TrustServerCertificate=True;MultipleActiveResultSets=true"
   }
 }
 ```
