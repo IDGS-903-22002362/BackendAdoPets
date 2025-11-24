@@ -18,15 +18,12 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IUMascotaRepositoty, MascotaRepository>();
         services.AddScoped<IEspecialidadRepositoy, EspecialidadRepository>();
         services.AddScoped<IProveedorRepository, ProveedorRepository>();
-<<<<<<< Updated upstream
         services.AddScoped<INotificacionRepository, NotificacionRepository>();
         services.AddScoped<IDispositivoRepository, DispositivoRepository>();
         services.AddScoped<ICitaRepository, CitaRepository>();
         services.AddScoped<ISalaRepository, SalaRepository>();
         services.AddScoped<ISolicitudCitaDigitalRepository, SolicitudCitaDigitalRepository>();
-=======
         services.AddScoped<IItemInventarioRepository, ItemInventarioRepository>();
->>>>>>> Stashed changes
 
         // Services
         services.AddScoped<IAuthService, AuthService>();
@@ -58,7 +55,6 @@ public static class ServiceCollectionExtensions
         
         // Servicio de Proveedores
         services.AddScoped<IProveedorService, ProveedorService>();
-<<<<<<< Updated upstream
        
         // Servicios de Recordatorios y Notificaciones
         services.AddScoped<IRecordatorioService, RecordatorioService>();
@@ -71,10 +67,9 @@ public static class ServiceCollectionExtensions
 
         // Servicios de Donaciones
         services.AddScoped<IDonacionesService, DonacionesService>();
-=======
+        
         // Servicio de Inventario
         services.AddScoped<IItemInventarioService, ItemInventarioService>();
->>>>>>> Stashed changes
 
         // ------------------------------
         // SERVICIOS PARA SURTIR INVENTARIO
@@ -87,7 +82,6 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ILoteInventarioRepository, LoteInventarioRepository>();
         services.AddScoped<IMovimientoInventarioRepository, MovimientoInventarioRepository>();
         services.AddScoped<IItemInventarioRepository, ItemInventarioRepository>();
-
 
         // Servicios
         services.AddScoped<ICompraService, CompraService>();
