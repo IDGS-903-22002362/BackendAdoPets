@@ -8,6 +8,7 @@ using AdoPetsBKD.Domain.Entities.Inventario;
 using AdoPetsBKD.Domain.Entities.Donaciones;
 using AdoPetsBKD.Domain.Entities.Servicios;
 using AdoPetsBKD.Domain.Entities.Auditoria;
+using AdoPetsBKD.Domain.Entities.Chat;
 
 namespace AdoPetsBKD.Infrastructure.Data;
 
@@ -85,6 +86,11 @@ public class AdoPetsDbContext : DbContext
     public DbSet<AuditLog> AuditLogs => Set<AuditLog>();
     public DbSet<OutboxEvent> OutboxEvents => Set<OutboxEvent>();
     public DbSet<JobProgramado> JobsProgramados => Set<JobProgramado>();
+    #endregion
+
+    #region Chat
+    public DbSet<ChatConversation> ChatConversations => Set<ChatConversation>();
+    public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
     #endregion
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)

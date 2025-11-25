@@ -74,23 +74,52 @@ builder.Services.AddHangfireServer(options =>
     options.ServerName = $"AdoPets-{Environment.MachineName}";
 });
 
-// --- 4. SERVICIOS DE APLICACIÓN ---
+// --- 4. GROQ AI (HTTP CLIENT) ---
+// Usa la variable de entorno GROQ_API_KEY (configurada en Windows y en Azure).
+var groqApiKey = Environment.GetEnvironmentVariable("GROQ_API_KEY");
+
+if (!string.IsNullOrWhiteSpace(groqApiKey))
+{
+    builder.Services.AddHttpClient("GroqClient", client =>
+    {
+        client.BaseAddress = new Uri("https://api.groq.com/openai/v1/");
+        client.DefaultRequestHeaders.Add("Authorization", $"Bearer {groqApiKey}");
+    });
+}
+else
+{
+    Console.WriteLine("⚠️ Advertencia: la variable de entorno GROQ_API_KEY no está configurada. El cliente de Groq no tendrá autenticación.");
+}
+
+// --- 5. SERVICIOS DE APLICACIÓN ---
 builder.Services.AddApplicationServices();
 
-// --- 5. CORS ---
+// --- 6. CORS ---
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(corsSettings.PolicyName, policy =>
     {
-        // En producción asegúrate de agregar la URL de tu frontend en Azure
-        policy.WithOrigins(corsSettings.AllowedOrigins)
-              .AllowAnyMethod()
-              .AllowAnyHeader()
-              .AllowCredentials();
+        if (builder.Environment.IsDevelopment())
+        {
+            // Desarrollo: permitir cualquier origen (Swagger local, pruebas, etc.)
+            policy
+                .AllowAnyOrigin()
+                .AllowAnyMethod()
+                .AllowAnyHeader();
+        }
+        else
+        {
+            // Producción: solo los orígenes configurados
+            policy
+                .WithOrigins(corsSettings.AllowedOrigins)
+                .AllowAnyMethod()
+                .AllowAnyHeader()
+                .AllowCredentials();
+        }
     });
 });
 
-// --- 6. AUTH ---
+// --- 7. AUTH ---
 builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
 .AddJwtBearer(options =>
 {
@@ -117,7 +146,7 @@ builder.Services.AddAuthorization(options =>
 // Controllers
 builder.Services.AddControllers();
 
-// --- 7. SWAGGER ---
+// --- 8. SWAGGER ---
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
@@ -180,6 +209,7 @@ app.UseSwagger(c =>
 app.UseSwaggerUI(c =>
 {
     c.SwaggerEndpoint("/v1/v1/swagger.json", "AdoPets API v1");
+    app.Logger.LogInformation("Swagger UI inicializado en la raíz.");
     c.RoutePrefix = string.Empty; // Swagger aparecerá en la raíz del sitio
 });
 
