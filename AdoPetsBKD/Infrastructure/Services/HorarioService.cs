@@ -98,12 +98,18 @@ namespace AdoPetsBKD.Infrastructure.Services
                 throw new ArgumentException("La fecha de inicio del rango no puede ser posterior a la fecha de fin");
             }
 
+            var tipoHorario = (TipoHorario)dto.Tipo;
+
+            // Validar que los horarios recurrentes semanales (Turno y Descanso) tengan día de la semana
+            // Los horarios de período continuo (Vacaciones, Permisos, Guardias) NO requieren DiaSemana
             if (dto.RangoInicio.HasValue && dto.RangoFin.HasValue && !dto.DiaSemana.HasValue)
             {
-                throw new ArgumentException("Los horarios recurrentes deben tener un día de la semana especificado");
+                // Solo Turno y Descanso son horarios recurrentes semanales que requieren DiaSemana
+                if (tipoHorario == TipoHorario.Turno || tipoHorario == TipoHorario.Descanso)
+                {
+                    throw new ArgumentException("Los horarios recurrentes semanales (Turno o Descanso) deben tener un día de la semana especificado");
+                }
             }
-
-            var tipoHorario = (TipoHorario)dto.Tipo;
 
             // Validar conflictos con horarios existentes
             var conflictos = await _horarioRepositoy.GetConflictosAsync(
@@ -204,13 +210,18 @@ namespace AdoPetsBKD.Infrastructure.Services
                 throw new ArgumentException("La fecha de inicio del rango no puede ser posterior a la fecha de fin");
             }
 
-            // Validar que los horarios recurrentes tengan día de la semana
+            var tipoHorario = (TipoHorario)dto.Tipo;
+
+            // Validar que los horarios recurrentes semanales (Turno y Descanso) tengan día de la semana
+            // Los horarios de período continuo (Vacaciones, Permisos, Guardias) NO requieren DiaSemana
             if (dto.RangoInicio.HasValue && dto.RangoFin.HasValue && !dto.DiaSemana.HasValue)
             {
-                throw new ArgumentException("Los horarios recurrentes deben tener un día de la semana especificado");
+                // Solo Turno y Descanso son horarios recurrentes semanales que requieren DiaSemana
+                if (tipoHorario == TipoHorario.Turno || tipoHorario == TipoHorario.Descanso)
+                {
+                    throw new ArgumentException("Los horarios recurrentes semanales (Turno o Descanso) deben tener un día de la semana especificado");
+                }
             }
-
-            var tipoHorario = (TipoHorario)dto.Tipo;
 
             var conflictos = await _horarioRepositoy.GetConflictosAsync(
                 horario.EmpleadoId,

@@ -163,10 +163,18 @@ namespace AdoPetsBKD.Infrastructure.Repositories
                             .ThenInclude(ur => ur.Rol)
                 .Where(h => h.EmpleadoId == empleadoId &&
                     (
+                        // Horario con fecha específica
                         (h.Fecha.HasValue && h.Fecha.Value.Date == fechaBuscada) ||
                         
+                        // Horario recurrente semanal (con DiaSemana especificado)
                         (h.RangoInicio.HasValue && h.RangoFin.HasValue && 
                          h.DiaSemana.HasValue && h.DiaSemana.Value == diaSemana &&
+                         fechaBuscada >= h.RangoInicio.Value.Date && 
+                         fechaBuscada <= h.RangoFin.Value.Date) ||
+                        
+                        // Horario de período continuo (sin DiaSemana: vacaciones, permisos, guardias)
+                        (h.RangoInicio.HasValue && h.RangoFin.HasValue && 
+                         !h.DiaSemana.HasValue &&
                          fechaBuscada >= h.RangoInicio.Value.Date && 
                          fechaBuscada <= h.RangoFin.Value.Date)
                     ))
@@ -192,28 +200,64 @@ namespace AdoPetsBKD.Infrastructure.Repositories
 
             var conflictos = new List<Horario>();
 
+            // Caso 1: Horario con fecha específica
             if (fecha.HasValue)
             {
                 var fechaBuscada = fecha.Value.Date;
                 var diaSemanaFecha = fecha.Value.DayOfWeek;
 
                 conflictos = todosLosHorarios.Where(h =>
+                    // Conflicto con fecha específica
                     (h.Fecha.HasValue && h.Fecha.Value.Date == fechaBuscada) ||
+                    // Conflicto con horario recurrente semanal
                     (h.RangoInicio.HasValue && h.RangoFin.HasValue &&
                      h.DiaSemana.HasValue && h.DiaSemana.Value == diaSemanaFecha &&
+                     fechaBuscada >= h.RangoInicio.Value.Date &&
+                     fechaBuscada <= h.RangoFin.Value.Date) ||
+                    // Conflicto con horario de período continuo
+                    (h.RangoInicio.HasValue && h.RangoFin.HasValue &&
+                     !h.DiaSemana.HasValue &&
                      fechaBuscada >= h.RangoInicio.Value.Date &&
                      fechaBuscada <= h.RangoFin.Value.Date)
                 ).ToList();
             }
+            // Caso 2: Horario recurrente semanal (con DiaSemana)
             else if (rangoInicio.HasValue && rangoFin.HasValue && diaSemana.HasValue)
             {
                 conflictos = todosLosHorarios.Where(h =>
+                    // Conflicto con fecha específica en el mismo día de la semana
                     (h.Fecha.HasValue && 
                      h.Fecha.Value.DayOfWeek == diaSemana.Value &&
                      h.Fecha.Value.Date >= rangoInicio.Value.Date &&
                      h.Fecha.Value.Date <= rangoFin.Value.Date) ||
+                    // Conflicto con otro horario recurrente semanal del mismo día
                     (h.RangoInicio.HasValue && h.RangoFin.HasValue &&
                      h.DiaSemana.HasValue && h.DiaSemana.Value == diaSemana.Value &&
+                     ((h.RangoInicio.Value.Date <= rangoFin.Value.Date && 
+                       h.RangoFin.Value.Date >= rangoInicio.Value.Date))) ||
+                    // Conflicto con horario de período continuo
+                    (h.RangoInicio.HasValue && h.RangoFin.HasValue &&
+                     !h.DiaSemana.HasValue &&
+                     ((h.RangoInicio.Value.Date <= rangoFin.Value.Date && 
+                       h.RangoFin.Value.Date >= rangoInicio.Value.Date)))
+                ).ToList();
+            }
+            // Caso 3: Horario de período continuo (sin DiaSemana: vacaciones, permisos, guardias)
+            else if (rangoInicio.HasValue && rangoFin.HasValue && !diaSemana.HasValue)
+            {
+                conflictos = todosLosHorarios.Where(h =>
+                    // Conflicto con fecha específica dentro del período
+                    (h.Fecha.HasValue && 
+                     h.Fecha.Value.Date >= rangoInicio.Value.Date &&
+                     h.Fecha.Value.Date <= rangoFin.Value.Date) ||
+                    // Conflicto con horario recurrente semanal
+                    (h.RangoInicio.HasValue && h.RangoFin.HasValue &&
+                     h.DiaSemana.HasValue &&
+                     ((h.RangoInicio.Value.Date <= rangoFin.Value.Date && 
+                       h.RangoFin.Value.Date >= rangoInicio.Value.Date))) ||
+                    // Conflicto con otro horario de período continuo
+                    (h.RangoInicio.HasValue && h.RangoFin.HasValue &&
+                     !h.DiaSemana.HasValue &&
                      ((h.RangoInicio.Value.Date <= rangoFin.Value.Date && 
                        h.RangoFin.Value.Date >= rangoInicio.Value.Date)))
                 ).ToList();
