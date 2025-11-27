@@ -276,22 +276,7 @@ public class CitaService : ICitaService
             throw new InvalidOperationException("La cita ya está cancelada");
         }
 
-        var oldStatus = cita.Status;
-        cita.Status = DomainStatusCita.Cancelada;
-        cita.MotivoRechazo = dto.MotivoRechazo;
-        cita.UpdatedAt = DateTime.UtcNow;
-        cita.UpdatedBy = userId;
-
-        // Agregar al historial
-        cita.HistorialEstados.Add(new CitaHistorialEstado
-        {
-            CitaId = cita.Id,
-            FromStatus = oldStatus,
-            ToStatus = DomainStatusCita.Cancelada,
-            ChangedBy = userId,
-            ChangedAt = DateTime.UtcNow,
-            Notas = dto.MotivoRechazo
-        });
+        cita.Cancelar(userId, dto.MotivoRechazo);
 
         await _citaRepository.UpdateAsync(cita);
 
@@ -317,25 +302,10 @@ public class CitaService : ICitaService
             throw new InvalidOperationException("La cita ya está completada");
         }
 
-        var oldStatus = cita.Status;
-        cita.Status = DomainStatusCita.Completada;
-        
         if (dto.Notas != null)
             cita.Notas = dto.Notas;
 
-        cita.UpdatedAt = DateTime.UtcNow;
-        cita.UpdatedBy = userId;
-
-        // Agregar al historial
-        cita.HistorialEstados.Add(new CitaHistorialEstado
-        {
-            CitaId = cita.Id,
-            FromStatus = oldStatus,
-            ToStatus = DomainStatusCita.Completada,
-            ChangedBy = userId,
-            ChangedAt = DateTime.UtcNow,
-            Notas = dto.Notas
-        });
+        cita.Completar(userId);
 
         await _citaRepository.UpdateAsync(cita);
 
