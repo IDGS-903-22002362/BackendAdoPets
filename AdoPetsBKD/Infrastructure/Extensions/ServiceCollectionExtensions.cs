@@ -33,6 +33,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IFirebaseAuthService, FirebaseAuthService>();
         
         // Servicios de Clínica
+        services.AddScoped<ICitaService, CitaService>();
         services.AddScoped<ITicketService, TicketService>();
         services.AddScoped<ISolicitudCitaDigitalService, SolicitudCitaDigitalService>();
         services.AddScoped<IPagoService, PagoService>();
