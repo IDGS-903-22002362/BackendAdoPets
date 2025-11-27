@@ -8,7 +8,7 @@ using System.Security.Claims;
 namespace AdoPetsBKD.Controllers;
 
 [ApiController]
-[Route("api/[controller]")]
+[Route("api/v1/[controller]")]
 [Authorize]
 public class ExpedientesController : ControllerBase
 {
