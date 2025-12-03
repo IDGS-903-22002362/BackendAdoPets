@@ -359,7 +359,7 @@ namespace AdoPetsBKD.Infrastructure.Services
                 Direccion = dto.Direccion,
                 IngresosMensuales = dto.IngresosMensuales,
                 MotivoAdopcion = dto.MotivoAdopcion,
-                FechaSolicitud = DateTime.UtcNow,
+                FechaSolicitud =  DateTime.Now,
                 Estado = EstadoSolicitudAdopcion.Pendiente,
                 CreatedBy = dto.UsuarioId
             };
