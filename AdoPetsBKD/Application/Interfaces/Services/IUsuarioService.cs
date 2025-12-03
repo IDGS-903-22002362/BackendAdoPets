@@ -16,4 +16,14 @@ public interface IUsuarioService
     Task<bool> ActivateAsync(Guid id);
     Task<bool> DeactivateAsync(Guid id);
     Task<bool> AssignRolesAsync(Guid userId, List<Guid> rolesIds);
+    
+    /// <summary>
+    /// Obtiene lista de adoptantes con todas sus mascotas (adoptadas y registradas)
+    /// </summary>
+    Task<IEnumerable<AdoptanteConMascotasDto>> GetAdoptantesConMascotasAsync();
+    
+    /// <summary>
+    /// Obtiene un adoptante específico con todas sus mascotas
+    /// </summary>
+    Task<AdoptanteConMascotasDto?> GetAdoptanteConMascotasByIdAsync(Guid usuarioId);
 }

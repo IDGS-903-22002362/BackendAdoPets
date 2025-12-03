@@ -36,6 +36,7 @@ namespace AdoPetsBKD.Infrastructure.Services
             var empleadosDto = empleados.Select(e => new EmpleadoListDto
             {
                 Id = e.Id,
+                UsuarioId = e.UsuarioId,
                 NombreCompleto = e.Usuario != null ? e.Usuario.Nombre + " " + e.Usuario.ApellidoPaterno + " " + e.Usuario.ApellidoMaterno : string.Empty,
                 EmailLaboral = e.EmailLaboral,
                 TelefonoLaboral = e.TelefonoLaboral,
@@ -72,6 +73,7 @@ namespace AdoPetsBKD.Infrastructure.Services
             return new EmpleadoDetailDto
             {
                 Id = empleado.Id,
+                UsuarioId = empleado.UsuarioId,
                 Nombre = empleado.Usuario.Nombre,
                 ApellidoPaterno = empleado.Usuario.ApellidoPaterno,
                 ApellidoMaterno = empleado.Usuario.ApellidoMaterno,

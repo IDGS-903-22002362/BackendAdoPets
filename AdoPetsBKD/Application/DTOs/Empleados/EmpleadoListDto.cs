@@ -6,6 +6,7 @@
     public class EmpleadoListDto
     {
         public Guid Id { get; set; }
+        public Guid UsuarioId { get; set; }
         public string NombreCompleto { get; set; } = string.Empty;
         public string  EmailLaboral { get; set; } = string.Empty;
         public string? TelefonoLaboral { get; set; } = string.Empty; 

@@ -14,6 +14,13 @@ using Hangfire;
 using Hangfire.SqlServer;
 using AdoPetsBKD.Application.Interfaces.Services;
 
+// --- CORRECCIÓN: Crear wwwroot antes de inicializar la aplicación ---
+var wwwrootPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+if (!Directory.Exists(wwwrootPath))
+{
+    Directory.CreateDirectory(wwwrootPath);
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 // --- 1. CONFIGURACIÓN DE SETTINGS ---
@@ -99,23 +106,12 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy(corsSettings.PolicyName, policy =>
     {
-        if (builder.Environment.IsDevelopment())
-        {
-            // Desarrollo: permitir cualquier origen (Swagger local, pruebas, etc.)
-            policy
-                .AllowAnyOrigin()
-                .AllowAnyMethod()
-                .AllowAnyHeader();
-        }
-        else
-        {
-            // Producción: solo los orígenes configurados
-            policy
-                .WithOrigins(corsSettings.AllowedOrigins)
-                .AllowAnyMethod()
-                .AllowAnyHeader()
-                .AllowCredentials();
-        }
+        // Usar los orígenes configurados tanto en desarrollo como en producción
+        policy
+            .WithOrigins(corsSettings.AllowedOrigins)
+            .AllowAnyMethod()
+            .AllowAnyHeader()
+            .AllowCredentials();
     });
 });
 
@@ -184,8 +180,8 @@ var app = builder.Build();
 // ================= PIPELINE DE PETICIONES =================
 
 // --- CORRECCIÓN 1: Manejo seguro de archivos estáticos ---
-// Verificamos si existe la carpeta uploads, si no, la creamos para que no truene.
-var uploadsPath = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads");
+// Verificamos si existe la carpeta uploads, si no, la creamos
+var uploadsPath = Path.Combine(wwwrootPath, "uploads");
 if (!Directory.Exists(uploadsPath))
 {
     Directory.CreateDirectory(uploadsPath);
@@ -224,7 +220,11 @@ app.UseHangfireDashboard("/hangfire", new DashboardOptions
 
 app.UseCors(corsSettings.PolicyName);
 
-app.UseHttpsRedirection();
+// Solo redirigir a HTTPS en producción
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 
 app.UseAuthentication();
 app.UseAuthorization();

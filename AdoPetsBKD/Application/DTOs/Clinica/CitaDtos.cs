@@ -6,6 +6,8 @@ namespace AdoPetsBKD.Application.DTOs.Clinica;
 // Request DTOs
 public class CreateCitaDto
 {
+    public Guid? SolicitudCitaDigitalId { get; set; }
+    
     public Guid? MascotaId { get; set; }
     public Guid? PropietarioId { get; set; }
     

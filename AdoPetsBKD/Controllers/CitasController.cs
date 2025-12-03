@@ -166,6 +166,8 @@ public class CitasController : ControllerBase
 
     /// <summary>
     /// Crea una nueva cita
+    /// Si se proporciona SolicitudCitaDigitalId, la cita se vinculará con la solicitud digital
+    /// y se validará que el pago del 50% esté completado antes de crear la cita.
     /// </summary>
     [HttpPost]
     [Authorize(Roles = "Admin,Veterinario,Recepcionista")]
@@ -179,7 +181,21 @@ public class CitasController : ControllerBase
                 return BadRequest(ApiResponse<CitaDetailDto>.ErrorResponse("Datos inválidos", errors));
             }
 
-            var userId = GetUserId();
+            Guid userId;
+            try
+            {
+                userId = GetUserId();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error al obtener userId del token. Claims: {Claims}", 
+                    string.Join(", ", User.Claims.Select(c => $"{c.Type}={c.Value}")));
+                return StatusCode(500, ApiResponse<CitaDetailDto>.ErrorResponse("Error de autenticación: No se pudo obtener el ID del usuario"));
+            }
+
+            _logger.LogInformation("Creando cita para veterinario {VetId}, mascota {MascotaId}, propietario {PropId}, sala {SalaId}",
+                dto.VeterinarioId, dto.MascotaId, dto.PropietarioId, dto.SalaId);
+
             var cita = await _citaService.CreateAsync(dto, userId);
 
             return CreatedAtAction(
@@ -189,16 +205,19 @@ public class CitasController : ControllerBase
         }
         catch (ArgumentException ex)
         {
+            _logger.LogWarning(ex, "Argumento inválido al crear cita");
             return BadRequest(ApiResponse<CitaDetailDto>.ErrorResponse(ex.Message));
         }
         catch (InvalidOperationException ex)
         {
+            _logger.LogWarning(ex, "Operación inválida al crear cita");
             return Conflict(ApiResponse<CitaDetailDto>.ErrorResponse(ex.Message));
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error al crear cita");
-            return StatusCode(500, ApiResponse<CitaDetailDto>.ErrorResponse("Error al crear cita"));
+            _logger.LogError(ex, "Error inesperado al crear cita. Tipo: {TipoCita}, VetId: {VetId}, StartAt: {StartAt}", 
+                dto.Tipo, dto.VeterinarioId, dto.StartAt);
+            return StatusCode(500, ApiResponse<CitaDetailDto>.ErrorResponse($"Error al crear cita: {ex.Message}"));
         }
     }
 
@@ -354,4 +373,195 @@ public class CitasController : ControllerBase
             return StatusCode(500, ApiResponse<DisponibilidadResponseDto>.ErrorResponse("Error al obtener disponibilidad"));
         }
     }
+
+    /// <summary>
+    /// Obtiene la cita asociada a una solicitud de cita digital
+    /// </summary>
+    [HttpGet("solicitud/{solicitudId}")]
+    public async Task<ActionResult<ApiResponse<CitaDetailDto>>> GetBySolicitudDigital(Guid solicitudId)
+    {
+        try
+        {
+            var cita = await _citaService.GetBySolicitudDigitalAsync(solicitudId);
+            if (cita == null)
+            {
+                return NotFound(ApiResponse<CitaDetailDto>.ErrorResponse("No se encontró una cita asociada a esta solicitud"));
+            }
+
+            return Ok(ApiResponse<CitaDetailDto>.SuccessResponse(cita));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al obtener cita por solicitud {SolicitudId}", solicitudId);
+            return StatusCode(500, ApiResponse<CitaDetailDto>.ErrorResponse("Error al obtener cita"));
+        }
+    }
+
+    /// <summary>
+    /// ENDPOINT DE DIAGNÓSTICO TEMPORAL: Verifica si las entidades necesarias existen
+    /// Este endpoint debe eliminarse en producción
+    /// </summary>
+    [HttpGet("diagnostico/verificar-entidades")]
+    [Authorize(Roles = "Admin,Veterinario,Recepcionista")]
+    public async Task<ActionResult<ApiResponse<object>>> VerificarEntidades(
+        [FromQuery] Guid veterinarioId,
+        [FromQuery] Guid? mascotaId = null,
+        [FromQuery] Guid? propietarioId = null,
+        [FromQuery] Guid? salaId = null)
+    {
+        try
+        {
+            var resultado = new Dictionary<string, object>();
+
+            // Verificar veterinario
+            _logger.LogInformation("Verificando veterinario: {VetId}", veterinarioId);
+            resultado["VeterinarioId"] = veterinarioId.ToString();
+            resultado["VeterinarioIdValido"] = veterinarioId != Guid.Empty;
+
+            // Verificar mascota
+            if (mascotaId.HasValue)
+            {
+                resultado["MascotaId"] = mascotaId.Value.ToString();
+                resultado["MascotaIdValido"] = mascotaId.Value != Guid.Empty;
+                var mascotaCitas = await _citaService.GetByMascotaAsync(mascotaId.Value);
+                resultado["MascotaExisteOTieneCitas"] = mascotaCitas.Any();
+            }
+
+            // Verificar propietario
+            if (propietarioId.HasValue)
+            {
+                resultado["PropietarioId"] = propietarioId.Value.ToString();
+                resultado["PropietarioIdValido"] = propietarioId.Value != Guid.Empty;
+                var propietarioCitas = await _citaService.GetByPropietarioAsync(propietarioId.Value);
+                resultado["PropietarioExisteOTieneCitas"] = propietarioCitas.Any();
+            }
+
+            // Verificar sala
+            if (salaId.HasValue)
+            {
+                resultado["SalaId"] = salaId.Value.ToString();
+                resultado["SalaIdValido"] = salaId.Value != Guid.Empty;
+            }
+
+            return Ok(ApiResponse<object>.SuccessResponse(resultado, "Diagnóstico completado"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error en diagnóstico");
+            return Ok(ApiResponse<object>.ErrorResponse($"Error: {ex.Message}"));
+        }
+    }
+
+    /// <summary>
+    /// ENDPOINT DE DIAGNÓSTICO: Valida formato de GUIDs
+    /// </summary>
+    [HttpPost("diagnostico/validar-guids")]
+    [Authorize(Roles = "Admin,Veterinario,Recepcionista")]
+    public ActionResult<ApiResponse<object>> ValidarGuids([FromBody] ValidarGuidsDto dto)
+    {
+        var resultado = new Dictionary<string, object>();
+
+        // Validar veterinario
+        resultado["VeterinarioId"] = new
+        {
+            Original = dto.VeterinarioId,
+            Longitud = dto.VeterinarioId?.Length ?? 0,
+            EsValido = Guid.TryParse(dto.VeterinarioId, out var vetGuid),
+            GuidParseado = Guid.TryParse(dto.VeterinarioId, out vetGuid) ? vetGuid.ToString() : "No se pudo parsear"
+        };
+
+        // Validar mascota
+        if (!string.IsNullOrEmpty(dto.MascotaId))
+        {
+            resultado["MascotaId"] = new
+            {
+                Original = dto.MascotaId,
+                Longitud = dto.MascotaId.Length,
+                EsValido = Guid.TryParse(dto.MascotaId, out var mascGuid),
+                GuidParseado = Guid.TryParse(dto.MascotaId, out mascGuid) ? mascGuid.ToString() : "No se pudo parsear"
+            };
+        }
+
+        // Validar propietario
+        if (!string.IsNullOrEmpty(dto.PropietarioId))
+        {
+            resultado["PropietarioId"] = new
+            {
+                Original = dto.PropietarioId,
+                Longitud = dto.PropietarioId.Length,
+                EsValido = Guid.TryParse(dto.PropietarioId, out var propGuid),
+                GuidParseado = Guid.TryParse(dto.PropietarioId, out propGuid) ? propGuid.ToString() : "No se pudo parsear"
+            };
+        }
+
+        // Validar sala
+        if (!string.IsNullOrEmpty(dto.SalaId))
+        {
+            resultado["SalaId"] = new
+            {
+                Original = dto.SalaId,
+                Longitud = dto.SalaId.Length,
+                EsValido = Guid.TryParse(dto.SalaId, out var salaGuid),
+                GuidParseado = Guid.TryParse(dto.SalaId, out salaGuid) ? salaGuid.ToString() : "No se pudo parsear"
+            };
+        }
+
+        return Ok(ApiResponse<object>.SuccessResponse(resultado, "Validación de GUIDs completada"));
+    }
+
+    /// <summary>
+    /// ENDPOINT AUXILIAR: Lista veterinarios con sus IDs de Usuario y Empleado
+    /// </summary>
+    [HttpGet("veterinarios-para-citas")]
+    [Authorize(Roles = "Admin,Veterinario,Recepcionista")]
+    public async Task<ActionResult<ApiResponse<List<object>>>> GetVeterinariosParaCitas()
+    {
+        try
+        {
+            // Obtener todos los empleados veterinarios con su información de usuario
+            var veterinarios = await _citaService.GetAllAsync(); // Esto nos da acceso al contexto
+            
+            // Devolver información útil para el frontend
+            var resultado = new List<object>
+            {
+                new
+                {
+                    Mensaje = "Para crear citas, usa el campo 'empleadoId' del endpoint /Empleados",
+                    Ejemplo = new
+                    {
+                        VeterinarioIdCorrecto = "EmpleadoId del endpoint /Empleados",
+                        EstructuraRequest = new
+                        {
+                            veterinarioId = "{EmpleadoId}",
+                            mascotaId = "{MascotaId}",
+                            propietarioId = "{UsuarioId del propietario}",
+                            salaId = "{SalaId}",
+                            tipo = 1,
+                            startAt = "2025-12-25T10:00:00",
+                            duracionMin = 30
+                        }
+                    },
+                    EndpointParaObtenerVeterinarios = "/api/v1/Empleados",
+                    CampoAUsar = "id (es el EmpleadoId)"
+                }
+            };
+
+            return Ok(ApiResponse<List<object>>.SuccessResponse(resultado, 
+                "Usa el endpoint /Empleados para obtener la lista de veterinarios con sus EmpleadoIds"));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al obtener información de veterinarios");
+            return StatusCode(500, ApiResponse<List<object>>.ErrorResponse("Error al obtener veterinarios"));
+        }
+    }
+}
+
+// DTO para validación de GUIDs
+public class ValidarGuidsDto
+{
+    public string? VeterinarioId { get; set; }
+    public string? MascotaId { get; set; }
+    public string? PropietarioId { get; set; }
+    public string? SalaId { get; set; }
 }

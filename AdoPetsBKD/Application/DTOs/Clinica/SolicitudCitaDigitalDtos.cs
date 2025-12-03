@@ -1,3 +1,5 @@
+using System.Text.Json.Serialization;
+
 namespace AdoPetsBKD.Application.DTOs.Clinica;
 
 public class CreateSolicitudCitaDigitalDto
@@ -60,6 +62,8 @@ public class ConfirmarSolicitudCitaDto
     public Guid VeterinarioId { get; set; }
     public Guid? SalaId { get; set; }
     public DateTime FechaHoraConfirmada { get; set; }
+    
+    [JsonPropertyName("duracionMin")]
     public int DuracionMin { get; set; }
 }
 

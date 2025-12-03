@@ -1,9 +1,13 @@
 using AdoPetsBKD.Application.Common;
 using AdoPetsBKD.Application.DTOs.Usuarios;
 using AdoPetsBKD.Application.DTOs.Roles;
+using AdoPetsBKD.Application.DTOs.Mascota;
 using AdoPetsBKD.Application.Interfaces.Repositories;
 using AdoPetsBKD.Application.Interfaces.Services;
 using AdoPetsBKD.Domain.Entities.Security;
+using AdoPetsBKD.Domain.Entities.Mascotas;
+using AdoPetsBKD.Infrastructure.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace AdoPetsBKD.Infrastructure.Services;
 
@@ -15,15 +19,18 @@ public class UsuarioService : IUsuarioService
     private readonly IUsuarioRepository _usuarioRepository;
     private readonly IRolRepository _rolRepository;
     private readonly IPasswordHasher _passwordHasher;
+    private readonly AdoPetsDbContext _context;
 
     public UsuarioService(
         IUsuarioRepository usuarioRepository,
         IRolRepository rolRepository,
-        IPasswordHasher passwordHasher)
+        IPasswordHasher passwordHasher,
+        AdoPetsDbContext context)
     {
         _usuarioRepository = usuarioRepository;
         _rolRepository = rolRepository;
         _passwordHasher = passwordHasher;
+        _context = context;
     }
 
     public async Task<PagedResponse<UsuarioListDto>> GetAllAsync(int pageNumber, int pageSize)
@@ -255,5 +262,149 @@ public class UsuarioService : IUsuarioService
         await _usuarioRepository.SaveChangesAsync();
 
         return true;
+    }
+
+    public async Task<IEnumerable<AdoptanteConMascotasDto>> GetAdoptantesConMascotasAsync()
+    {
+        // Obtener todos los usuarios con rol "Adoptante"
+        var adoptantes = await _context.Usuarios
+            .Include(u => u.UsuarioRoles)
+                .ThenInclude(ur => ur.Rol)
+            .Where(u => u.UsuarioRoles.Any(ur => ur.Rol.Nombre == "Adoptante"))
+            .ToListAsync();
+
+        var resultado = new List<AdoptanteConMascotasDto>();
+
+        foreach (var adoptante in adoptantes)
+        {
+            var adoptanteDto = await GetAdoptanteConMascotasByIdAsync(adoptante.Id);
+            if (adoptanteDto != null)
+            {
+                resultado.Add(adoptanteDto);
+            }
+        }
+
+        return resultado;
+    }
+
+    public async Task<AdoptanteConMascotasDto?> GetAdoptanteConMascotasByIdAsync(Guid usuarioId)
+    {
+        // Obtener el usuario
+        var usuario = await _context.Usuarios
+            .Include(u => u.UsuarioRoles)
+                .ThenInclude(ur => ur.Rol)
+            .FirstOrDefaultAsync(u => u.Id == usuarioId);
+
+        if (usuario == null)
+        {
+            return null;
+        }
+
+        // Verificar que sea adoptante
+        var esAdoptante = usuario.UsuarioRoles.Any(ur => ur.Rol.Nombre == "Adoptante");
+        
+        var adoptanteDto = new AdoptanteConMascotasDto
+        {
+            UsuarioId = usuario.Id,
+            Nombre = usuario.Nombre,
+            ApellidoPaterno = usuario.ApellidoPaterno,
+            ApellidoMaterno = usuario.ApellidoMaterno,
+            NombreCompleto = usuario.NombreCompleto,
+            Email = usuario.Email,
+            Telefono = usuario.Telefono,
+            UltimoAccesoAt = usuario.UltimoAccesoAt,
+            CreatedAt = usuario.CreatedAt,
+            Mascotas = new List<MascotaAdoptanteDto>()
+        };
+
+        // 1. Obtener mascotas adoptadas del refugio (solicitudes aprobadas)
+        var solicitudesAprobadas = await _context.SolicitudesAdopcion
+            .Include(s => s.Mascota)
+                .ThenInclude(m => m.Fotos)
+            .Where(s => s.UsuarioId == usuarioId && s.Estado == EstadoSolicitudAdopcion.Aprobada)
+            .ToListAsync();
+
+        foreach (var solicitud in solicitudesAprobadas)
+        {
+            if (solicitud.Mascota != null)
+            {
+                adoptanteDto.Mascotas.Add(new MascotaAdoptanteDto
+                {
+                    MascotaId = solicitud.Mascota.Id,
+                    Nombre = solicitud.Mascota.Nombre,
+                    Especie = solicitud.Mascota.Especie,
+                    Raza = solicitud.Mascota.Raza,
+                    Sexo = (int)solicitud.Mascota.Sexo,
+                    FechaNacimiento = solicitud.Mascota.FechaNacimiento,
+                    EdadEnAnios = solicitud.Mascota.FechaNacimiento.HasValue
+                        ? (int)((DateTime.Now - solicitud.Mascota.FechaNacimiento.Value).TotalDays / 365.25)
+                        : null,
+                    Personalidad = solicitud.Mascota.Personalidad,
+                    EstadoSalud = solicitud.Mascota.EstadoSalud,
+                    Estatus = (int)solicitud.Mascota.Estatus,
+                    EstatusNombre = solicitud.Mascota.Estatus.ToString(),
+                    Tipo = (int)solicitud.Mascota.Tipo,
+                    FechaAdquisicion = solicitud.FechaAprobacion ?? solicitud.FechaSolicitud,
+                    FechaSolicitudAdopcion = solicitud.FechaSolicitud,
+                    FechaAprobacionAdopcion = solicitud.FechaAprobacion,
+                    Fotos = solicitud.Mascota.Fotos?.Select(f => new AddMascotaFotoDto
+                    {
+                        Id = f.Id,
+                        StorageKey = f.StorageKey,
+                        MimeType = f.MimeType,
+                        Orden = f.Orden,
+                        EsPrincipal = f.EsPrincipal
+                    }).OrderBy(f => f.Orden).ToList() ?? new List<AddMascotaFotoDto>()
+                });
+            }
+        }
+
+        // 2. Obtener mascotas registradas directamente por el usuario
+        var mascotasRegistradas = await _context.Mascotas
+            .Include(m => m.Fotos)
+            .Where(m => m.PropietarioId == usuarioId && m.Tipo == TipoMascota.DeUsuario && m.DeletedAt == null)
+            .ToListAsync();
+
+        foreach (var mascota in mascotasRegistradas)
+        {
+            adoptanteDto.Mascotas.Add(new MascotaAdoptanteDto
+            {
+                MascotaId = mascota.Id,
+                Nombre = mascota.Nombre,
+                Especie = mascota.Especie,
+                Raza = mascota.Raza,
+                Sexo = (int)mascota.Sexo,
+                FechaNacimiento = mascota.FechaNacimiento,
+                EdadEnAnios = mascota.FechaNacimiento.HasValue
+                    ? (int)((DateTime.Now - mascota.FechaNacimiento.Value).TotalDays / 365.25)
+                    : null,
+                Personalidad = mascota.Personalidad,
+                EstadoSalud = mascota.EstadoSalud,
+                Estatus = (int)mascota.Estatus,
+                EstatusNombre = mascota.Estatus.ToString(),
+                Tipo = (int)mascota.Tipo,
+                FechaAdquisicion = mascota.CreatedAt,
+                FechaSolicitudAdopcion = null,
+                FechaAprobacionAdopcion = null,
+                Fotos = mascota.Fotos?.Select(f => new AddMascotaFotoDto
+                {
+                    Id = f.Id,
+                    StorageKey = f.StorageKey,
+                    MimeType = f.MimeType,
+                    Orden = f.Orden,
+                    EsPrincipal = f.EsPrincipal
+                }).OrderBy(f => f.Orden).ToList() ?? new List<AddMascotaFotoDto>()
+            });
+        }
+
+        // Calcular totales
+        adoptanteDto.TotalMascotas = adoptanteDto.Mascotas.Count;
+        adoptanteDto.MascotasAdoptadas = adoptanteDto.Mascotas.Count(m => m.Tipo == 1);
+        adoptanteDto.MascotasRegistradas = adoptanteDto.Mascotas.Count(m => m.Tipo == 2);
+
+        // Ordenar mascotas por fecha de adquisición (más recientes primero)
+        adoptanteDto.Mascotas = adoptanteDto.Mascotas.OrderByDescending(m => m.FechaAdquisicion).ToList();
+
+        return adoptanteDto;
     }
 }

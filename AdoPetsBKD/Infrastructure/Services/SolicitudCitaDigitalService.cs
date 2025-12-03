@@ -10,10 +10,12 @@ namespace AdoPetsBKD.Infrastructure.Services;
 public class SolicitudCitaDigitalService : ISolicitudCitaDigitalService
 {
     private readonly AdoPetsDbContext _context;
+    private readonly ICitaService _citaService;
 
-    public SolicitudCitaDigitalService(AdoPetsDbContext context)
+    public SolicitudCitaDigitalService(AdoPetsDbContext context, ICitaService citaService)
     {
         _context = context;
+        _citaService = citaService;
     }
 
     public async Task<SolicitudCitaDigitalDto> CreateSolicitudAsync(CreateSolicitudCitaDigitalDto dto, Guid createdBy)
@@ -241,7 +243,7 @@ public class SolicitudCitaDigitalService : ISolicitudCitaDigitalService
         var solicitud = await _context.SolicitudesCitasDigitales.FindAsync(dto.SolicitudId)
             ?? throw new Exception("Solicitud no encontrada");
 
-        // ? VALIDACIÓN DE PAGO DEL 50% - AGREGADO
+        // Validación de pago del 50%
         if (!solicitud.PagoAnticipoId.HasValue)
         {
             throw new InvalidOperationException("Debe completar el pago del anticipo del 50% antes de confirmar la cita");
@@ -260,29 +262,23 @@ public class SolicitudCitaDigitalService : ISolicitudCitaDigitalService
             throw new InvalidOperationException($"El monto del anticipo debe ser al menos {solicitud.MontoAnticipo:C} (50% del costo total)");
         }
 
-        // Crear la cita
-        var cita = new Cita
+        // Usar el CitaService para crear la cita (esto valida disponibilidad y crea recordatorios)
+        var createCitaDto = new CreateCitaDto
         {
-            Id = Guid.NewGuid(),
+            SolicitudCitaDigitalId = solicitud.Id,
             MascotaId = solicitud.MascotaId,
             PropietarioId = solicitud.SolicitanteId,
             VeterinarioId = dto.VeterinarioId,
             SalaId = dto.SalaId,
             Tipo = TipoCita.Procedimiento,
-            Status = StatusCita.Programada,
             StartAt = dto.FechaHoraConfirmada,
-            EndAt = dto.FechaHoraConfirmada.AddMinutes(dto.DuracionMin),
             DuracionMin = dto.DuracionMin,
-            MotivoConsulta = solicitud.MotivoConsulta,
-            PagoId = pagoAnticipo.Id, // Vincular el pago a la cita
-            CreatedBy = dto.ConfirmadoPorId
+            MotivoConsulta = solicitud.MotivoConsulta
         };
 
-        _context.Citas.Add(cita);
-        solicitud.Confirmar(dto.ConfirmadoPorId, cita.Id);
-        
-        await _context.SaveChangesAsync();
+        var citaCreada = await _citaService.CreateAsync(createCitaDto, dto.ConfirmadoPorId);
 
+        // La solicitud ya fue confirmada por el CitaService.CreateAsync
         return await GetSolicitudByIdAsync(dto.SolicitudId) ?? throw new Exception("Error al confirmar solicitud");
     }
 

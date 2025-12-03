@@ -7,6 +7,7 @@
     public class EmpleadoDetailDto
     {
         public Guid Id { get; set; }
+        public Guid UsuarioId { get; set; }
         public string Cedula { get; set; } = string.Empty;
 
         public string Nombre { get; set; } = string.Empty;

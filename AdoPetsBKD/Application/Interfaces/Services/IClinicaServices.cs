@@ -12,6 +12,7 @@ public interface ICitaService
     Task<List<CitaListDto>> GetByPropietarioAsync(Guid propietarioId);
     Task<List<CitaListDto>> GetByDateRangeAsync(DateTime startDate, DateTime endDate);
     Task<List<CitaListDto>> GetByStatusAsync(StatusCita status);
+    Task<CitaDetailDto?> GetBySolicitudDigitalAsync(Guid solicitudId);
     Task<CitaDetailDto> CreateAsync(CreateCitaDto dto, Guid userId);
     Task<CitaDetailDto> UpdateAsync(Guid id, UpdateCitaDto dto, Guid userId);
     Task<CitaDetailDto> CancelarAsync(Guid id, CancelarCitaDto dto, Guid userId);

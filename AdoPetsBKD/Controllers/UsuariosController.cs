@@ -267,6 +267,137 @@ public class UsuariosController : ControllerBase
         }
     }
 
+    /// <summary>
+    /// Obtener lista de todos los adoptantes con sus mascotas (adoptadas y registradas)
+    /// </summary>
+    /// <remarks>
+    /// Retorna una lista completa de adoptantes incluyendo:
+    /// - Mascotas adoptadas del refugio
+    /// - Mascotas registradas directamente por el usuario
+    /// </remarks>
+    [HttpGet("adoptantes/mascotas")]
+    [Authorize(Policy = "StaffOnly")]
+    [ProducesResponseType(typeof(ApiResponse<IEnumerable<AdoptanteConMascotasDto>>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetAdoptantesConMascotas()
+    {
+        try
+        {
+            _logger.LogInformation("Obteniendo lista de adoptantes con sus mascotas");
+            
+            var adoptantes = await _usuarioService.GetAdoptantesConMascotasAsync();
+            
+            // Convertir las URLs de fotos a URLs completas
+            var baseUrl = $"{Request.Scheme}://{Request.Host}";
+            foreach (var adoptante in adoptantes)
+            {
+                foreach (var mascota in adoptante.Mascotas)
+                {
+                    foreach (var foto in mascota.Fotos)
+                    {
+                        if (!string.IsNullOrEmpty(foto.StorageKey) && !foto.StorageKey.StartsWith("http"))
+                        {
+                            if (foto.StorageKey.StartsWith("/"))
+                            {
+                                foto.StorageKey = $"{baseUrl}{foto.StorageKey}";
+                            }
+                            else if (foto.StorageKey.StartsWith("uploads/"))
+                            {
+                                foto.StorageKey = $"{baseUrl}/{foto.StorageKey}";
+                            }
+                        }
+                    }
+                }
+            }
+
+            _logger.LogInformation("Se encontraron {Count} adoptantes con mascotas", adoptantes.Count());
+            
+            return Ok(ApiResponse<IEnumerable<AdoptanteConMascotasDto>>.SuccessResponse(
+                adoptantes, 
+                $"Se encontraron {adoptantes.Count()} adoptantes"
+            ));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al obtener lista de adoptantes con mascotas");
+            return BadRequest(ApiResponse<object>.ErrorResponse("Error al obtener adoptantes", ex.Message));
+        }
+    }
+
+    /// <summary>
+    /// Obtener un adoptante específico con todas sus mascotas
+    /// </summary>
+    /// <param name="usuarioId">ID del usuario adoptante</param>
+    /// <remarks>
+    /// Retorna información detallada del adoptante incluyendo:
+    /// - Datos personales del adoptante
+    /// - Mascotas adoptadas del refugio con fecha de adopción
+    /// - Mascotas registradas directamente con fecha de registro
+    /// - Estadísticas: total de mascotas, adoptadas y registradas
+    /// </remarks>
+    [HttpGet("adoptantes/{usuarioId}/mascotas")]
+    [Authorize(Policy = "StaffOnly")]
+    [ProducesResponseType(typeof(ApiResponse<AdoptanteConMascotasDto>), StatusCodes.Status200OK)]
+    [ProducesResponseType(StatusCodes.Status404NotFound)]
+    [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+    [ProducesResponseType(StatusCodes.Status403Forbidden)]
+    public async Task<IActionResult> GetAdoptanteConMascotasById(Guid usuarioId)
+    {
+        try
+        {
+            _logger.LogInformation("Obteniendo adoptante {UsuarioId} con sus mascotas", usuarioId);
+            
+            var adoptante = await _usuarioService.GetAdoptanteConMascotasByIdAsync(usuarioId);
+
+            if (adoptante == null)
+            {
+                return NotFound(ApiResponse<object>.ErrorResponse(
+                    "Adoptante no encontrado", 
+                    $"No se encontró adoptante con ID {usuarioId}"
+                ));
+            }
+
+            // Convertir las URLs de fotos a URLs completas
+            var baseUrl = $"{Request.Scheme}://{Request.Host}";
+            foreach (var mascota in adoptante.Mascotas)
+            {
+                foreach (var foto in mascota.Fotos)
+                {
+                    if (!string.IsNullOrEmpty(foto.StorageKey) && !foto.StorageKey.StartsWith("http"))
+                    {
+                        if (foto.StorageKey.StartsWith("/"))
+                        {
+                            foto.StorageKey = $"{baseUrl}{foto.StorageKey}";
+                        }
+                        else if (foto.StorageKey.StartsWith("uploads/"))
+                        {
+                            foto.StorageKey = $"{baseUrl}/{foto.StorageKey}";
+                        }
+                    }
+                }
+            }
+
+            _logger.LogInformation(
+                "Adoptante {UsuarioId} tiene {TotalMascotas} mascotas ({Adoptadas} adoptadas, {Registradas} registradas)", 
+                usuarioId, 
+                adoptante.TotalMascotas, 
+                adoptante.MascotasAdoptadas, 
+                adoptante.MascotasRegistradas
+            );
+            
+            return Ok(ApiResponse<AdoptanteConMascotasDto>.SuccessResponse(
+                adoptante, 
+                $"Adoptante encontrado con {adoptante.TotalMascotas} mascotas"
+            ));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error al obtener adoptante {UsuarioId} con mascotas", usuarioId);
+            return BadRequest(ApiResponse<object>.ErrorResponse("Error al obtener adoptante", ex.Message));
+        }
+    }
+
     #region Helper Methods
 
     private Guid GetCurrentUserId()
