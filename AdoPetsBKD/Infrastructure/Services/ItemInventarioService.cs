@@ -2,6 +2,8 @@
 using AdoPetsBKD.Application.Interfaces.Repositories;
 using AdoPetsBKD.Application.Interfaces.Services;
 using AdoPetsBKD.Domain.Entities.Inventario;
+using Microsoft.EntityFrameworkCore;
+using AdoPetsBKD.Infrastructure.Data;
 
 namespace AdoPetsBKD.Infrastructure.Services;
 
@@ -9,12 +11,18 @@ public class ItemInventarioService : IItemInventarioService
 {
     private readonly IItemInventarioRepository _repo;
     private readonly ILoteInventarioRepository _loteRepo;
+    private readonly AdoPetsDbContext _context;
 
-    public ItemInventarioService(IItemInventarioRepository repo, ILoteInventarioRepository loteRepo)
+    public ItemInventarioService(
+        IItemInventarioRepository repo, 
+        ILoteInventarioRepository loteRepo,
+        AdoPetsDbContext context)
     {
         _repo = repo;
         _loteRepo = loteRepo;
+        _context = context;
     }
+
     public async Task<ItemDTO> CrearItemAsync(CrearItemDTO dto)
     {
         var nuevo = new ItemInventario
@@ -74,10 +82,11 @@ public class ItemInventarioService : IItemInventarioService
             StockTotal = i.StockTotal
         });
     }
+
     public async Task<List<InventarioItemDTO>> GetInventarioAsync()
     {
         var items = await _repo.GetAllAsync();
-        var lotes = await _loteRepo.GetAllAsync(); // 🔥 YA CORREGIDO
+        var lotes = await _loteRepo.GetAllAsync();
 
         var resultado = new List<InventarioItemDTO>();
 
@@ -85,33 +94,67 @@ public class ItemInventarioService : IItemInventarioService
         {
             var lotesItem = lotes
                 .Where(l => l.ItemId == item.Id)
-                .OrderBy(l => l.ExpDate)
+                .OrderBy(l => l.ExpDate ?? DateTime.MaxValue) // FIFO: primero los que vencen antes
+                .ThenBy(l => l.CreatedAt)
                 .ToList();
 
             decimal totalDisponible = lotesItem.Sum(l => l.QtyDisponible);
 
             var loteMasProximo = lotesItem.FirstOrDefault();
 
+            // Obtener precio unitario del lote desde DetalleCompra
+            decimal? precioUnitario = null;
+            decimal? precioUnitarioPorUnidad = null;
+            LoteInventarioDTO? loteDto = null;
+
+            if (loteMasProximo != null)
+            {
+                // Buscar el precio del lote en DetalleCompra usando el número de lote
+                var detalleCompra = await _context.DetallesCompras
+                    .Where(dc => dc.ItemId == item.Id && dc.Lote == loteMasProximo.Lote)
+                    .OrderByDescending(dc => dc.Compra.FechaCompra)
+                    .FirstOrDefaultAsync();
+
+                if (detalleCompra != null)
+                {
+                    // Precio del lote completo (presentación)
+                    precioUnitario = detalleCompra.PrecioUnitario;
+                    
+                    // Calcular precio por unidad individual
+                    // PrecioUnitario del lote / MinQty (unidades por presentación)
+                    if (item.MinQty > 0)
+                    {
+                        precioUnitarioPorUnidad = precioUnitario / item.MinQty;
+                    }
+                    else
+                    {
+                        // Si MinQty es 0, usar el precio del lote directamente
+                        precioUnitarioPorUnidad = precioUnitario;
+                    }
+                }
+
+                loteDto = new LoteInventarioDTO
+                {
+                    LoteId = loteMasProximo.Id,
+                    Lote = loteMasProximo.Lote,
+                    ExpDate = loteMasProximo.ExpDate,
+                    QtyDisponible = loteMasProximo.QtyDisponible,
+                    PrecioUnitario = precioUnitarioPorUnidad ?? 0m
+                };
+            }
+
             resultado.Add(new InventarioItemDTO
             {
                 ItemId = item.Id,
                 Nombre = item.Nombre,
                 MinQty = item.MinQty,
-                Unidad = item.Unidad,   // 🔥 ESTO TAMBIÉN YA CORREGIDO
-
+                Unidad = item.Unidad,
                 TotalDisponible = totalDisponible,
-
-                LoteMasProximo = loteMasProximo == null ? null : new LoteInventarioDTO
-                {
-                    LoteId = loteMasProximo.Id,
-                    Lote = loteMasProximo.Lote,
-                    ExpDate = loteMasProximo.ExpDate,
-                    QtyDisponible = loteMasProximo.QtyDisponible
-                }
+                PrecioUnitario = precioUnitarioPorUnidad, // Precio por unidad individual
+                LoteMasProximo = loteDto
             });
         }
 
         return resultado;
     }
-
 }

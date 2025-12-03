@@ -76,8 +76,6 @@ public class CompraService : ICompraService
 
             decimal cantidadReal = item.MinQty * d.Cantidad;
 
-
-
             var lote = new LoteInventario
             {
                 ItemId = d.ItemId,

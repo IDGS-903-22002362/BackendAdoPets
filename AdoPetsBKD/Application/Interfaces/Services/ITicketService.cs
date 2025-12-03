@@ -9,6 +9,7 @@ public interface ITicketService
     Task<TicketDto?> GetTicketByNumeroAsync(string numeroTicket);
     Task<List<TicketDto>> GetTicketsByClienteAsync(Guid clienteId);
     Task<List<TicketDto>> GetTicketsByCitaAsync(Guid citaId);
+    Task<List<TicketDto>> GetAllTicketsAsync(); // ? NUEVO
     Task<TicketDto> MarcarComoEntregadoAsync(Guid ticketId, Guid entregadoPorId);
     Task<byte[]> GenerarPdfTicketAsync(Guid ticketId);
 }
