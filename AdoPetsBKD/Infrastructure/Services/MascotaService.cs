@@ -554,11 +554,16 @@ namespace AdoPetsBKD.Infrastructure.Services
             solicitud.Estado = dto.Estado;
             solicitud.FechaAprobacion = DateTime.UtcNow;
 
+           
             var mascota = await _mascotaRepository.GetByIdAsync(solicitud.MascotaId);
             if (mascota != null)
             {
                 mascota.Estatus = EstatusMascota.Adoptada;
                 mascota.UpdatedAt = DateTime.UtcNow;
+
+                // ASOCIAR AL USUARIO QUE LA ADOPTÓ
+                mascota.PropietarioId = solicitud.UsuarioId;
+                mascota.Tipo = TipoMascota.DeUsuario;
 
                 await _mascotaRepository.UpdateAsync(mascota);
             }
@@ -567,7 +572,6 @@ namespace AdoPetsBKD.Infrastructure.Services
             {
                 await _mascotaRepository.UpdateStatusSolicitudAdopcionAsync(solicitud);
 
-            
                 await _mascotaRepository.AddAdopcionLogAsync(log);
 
                 await _mascotaRepository.SaveChangesAsync();
@@ -575,8 +579,7 @@ namespace AdoPetsBKD.Infrastructure.Services
                 return new EstadoSolicitudeAceptadaDto
                 {
                     Id = solicitud.Id,
-                    Estado = solicitud.Estado                                                                    ,
-
+                    Estado = solicitud.Estado,
                 };
             }
             catch (DbUpdateConcurrencyException)
