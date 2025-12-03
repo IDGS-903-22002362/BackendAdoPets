@@ -17,4 +17,14 @@ public class MovimientoInventarioRepository : IMovimientoInventarioRepository
         await _ctx.MovimientosInventario.AddRangeAsync(movimientos);
         await _ctx.SaveChangesAsync();
     }
+
+    public async Task AddAsync(MovimientoInventario movimiento)
+    {
+        await _ctx.MovimientosInventario.AddAsync(movimiento);
+    }
+
+    public async Task SaveChangesAsync()
+    {
+        await _ctx.SaveChangesAsync();
+    }
 }

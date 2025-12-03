@@ -35,6 +35,23 @@ public class TicketsController : ControllerBase
         }
     }
 
+    [HttpGet]
+    public async Task<ActionResult<ApiResponse<List<TicketDto>>>> GetAllTickets()
+    {
+        try
+        {
+            var tickets = await _ticketService.GetAllTicketsAsync();
+            return Ok(ApiResponse<List<TicketDto>>.SuccessResponse(
+                tickets, 
+                $"Se encontraron {tickets.Count} tickets"
+            ));
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(ApiResponse<List<TicketDto>>.ErrorResponse(ex.Message));
+        }
+    }
+
     [HttpGet("{id}")]
     public async Task<ActionResult<ApiResponse<TicketDto>>> GetTicketById(Guid id)
     {
