@@ -23,6 +23,16 @@ if (!Directory.Exists(wwwrootPath))
 
 var builder = WebApplication.CreateBuilder(args);
 
+// --- SOLUCIÓN AZURE: Configurar Kestrel para usar el puerto correcto ---
+builder.WebHost.ConfigureKestrel(serverOptions =>
+{
+    // Azure App Service proporciona el puerto a través de la variable PORT
+    var port = Environment.GetEnvironmentVariable("PORT") ?? "8080";
+
+    // Escuchar en todas las interfaces (0.0.0.0) en lugar de localhost
+    serverOptions.ListenAnyIP(int.Parse(port));
+});
+
 // --- 1. CONFIGURACIÓN DE SETTINGS ---
 var jwtSettings = builder.Configuration.GetSection(JwtSettings.SectionName).Get<JwtSettings>()
     ?? throw new InvalidOperationException("JWT settings not configured");
