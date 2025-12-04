@@ -135,18 +135,15 @@ namespace AdoPetsBKD.Infrastructure.Services
 
             try
             {
-                var order = await _paypalClient.CaptureOrderAsync(orderId);
+                var captureResponse = await _paypalClient.CaptureOrderAsync(orderId);
 
                 // Verificar que el pago fue exitoso
-                if (order.Status?.ToUpper() == "COMPLETED")
+                if (!string.IsNullOrEmpty(captureResponse.Status) && captureResponse.Status.ToUpper() == "COMPLETED")
                 {
-                    var capture = order.PurchaseUnits?.FirstOrDefault()?.Payments?.Captures?.FirstOrDefault();
-                    var payer = order.Payer;
-
                     donacion.Capturar(
-                        capture?.Id ?? orderId,
-                        payer?.Email,
-                        payer?.Name?.GivenName + " " + payer?.Name?.Surname
+                        captureResponse.CaptureId ?? orderId,
+                        captureResponse.PayerEmail,
+                        captureResponse.PayerName
                     );
 
                     await _context.SaveChangesAsync();
@@ -155,7 +152,7 @@ namespace AdoPetsBKD.Infrastructure.Services
                 }
                 else
                 {
-                    throw new Exception($"La donación no fue completada. Estado: {order.Status}");
+                    throw new Exception($"La donación no fue completada. Estado: {captureResponse.Status}");
                 }
 
                 return await GetDonacionByIdAsync(donacion.Id) ?? throw new Exception("Error al capturar donación");

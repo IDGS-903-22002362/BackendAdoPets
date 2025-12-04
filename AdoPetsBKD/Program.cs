@@ -98,6 +98,10 @@ else
     Console.WriteLine("⚠️ Advertencia: la variable de entorno GROQ_API_KEY no está configurada. El cliente de Groq no tendrá autenticación.");
 }
 
+// --- 4.1 HTTP CLIENT FACTORY ---
+// Registrar HttpClient factory para servicios que lo necesiten (como PayPalClient)
+builder.Services.AddHttpClient();
+
 // --- 5. SERVICIOS DE APLICACIÓN ---
 builder.Services.AddApplicationServices();
 

@@ -1,5 +1,6 @@
 using PayPalCheckoutSdk.Orders;
 using PayPalCheckoutSdk.Core;
+using AdoPetsBKD.Application.DTOs.Clinica;
 
 namespace AdoPetsBKD.Application.Interfaces.Services;
 
@@ -20,8 +21,9 @@ public interface IPayPalClient
 
     /// <summary>
     /// Captura una orden aprobada por el usuario
+    /// Devuelve información extraída manualmente del JSON de PayPal
     /// </summary>
-    Task<Order> CaptureOrderAsync(string orderId);
+    Task<PayPalCaptureResponseDto> CaptureOrderAsync(string orderId);
 
     /// <summary>
     /// Obtiene los detalles de una orden

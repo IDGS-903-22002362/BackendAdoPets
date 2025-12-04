@@ -33,7 +33,7 @@ public class Cita : AuditableEntity
     public string? MotivoConsulta { get; set; }
     public string? MotivoRechazo { get; set; }
     
-    public Guid? PagoId { get; set; } // Reservado para futuro
+    public Guid? PagoId { get; set; }
 
     // Navigation properties
     public ICollection<CitaRecordatorio> Recordatorios { get; set; } = new List<CitaRecordatorio>();

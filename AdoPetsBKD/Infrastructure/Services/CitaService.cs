@@ -352,6 +352,22 @@ public class CitaService : ICitaService
             _logger.LogInformation("Cita creada exitosamente con ID: {CitaId}, VeterinarioUsuarioId: {VetUsrId}", 
                 cita.Id, cita.VeterinarioId);
 
+            // ? NUEVO: Si la cita viene de una solicitud digital, actualizar el CitaId en el pago de anticipo
+            if (solicitud != null && solicitud.PagoAnticipoId.HasValue)
+            {
+                var pagoAnticipo = await _context.Pagos.FindAsync(solicitud.PagoAnticipoId.Value);
+                if (pagoAnticipo != null && !pagoAnticipo.CitaId.HasValue)
+                {
+                    pagoAnticipo.CitaId = cita.Id;
+                    pagoAnticipo.UpdatedAt = DateTime.UtcNow;
+                    pagoAnticipo.UpdatedBy = userId;
+                    
+                    _logger.LogInformation(
+                        "Pago de anticipo {PagoId} actualizado con CitaId {CitaId}", 
+                        pagoAnticipo.Id, cita.Id);
+                }
+            }
+
             // Si viene de una solicitud digital, actualizarla
             if (solicitud != null)
             {

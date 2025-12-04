@@ -12,4 +12,10 @@ public interface IPagoService
     Task<List<PagoDto>> GetPagosByUsuarioAsync(Guid usuarioId);
     Task<PagoDto> CancelarPagoAsync(Guid pagoId, Guid canceladoPorId, string? motivo = null);
     Task ProcessWebhookAsync(PayPalWebhookDto webhook);
+    
+    // Nuevos métodos para pagos de citas
+    Task<List<PagoDto>> GetPagosByCitaIdAsync(Guid citaId);
+    Task<List<PagoPendienteDto>> GetPagosPendientesAsync();
+    Task<List<PagoPendienteDto>> GetPagosPendientesByUsuarioAsync(Guid usuarioId);
+    Task<PagoDto> CompletarPagoRestanteAsync(CompletarPagoRestanteDto dto, Guid userId);
 }
